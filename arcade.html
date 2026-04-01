@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Noah's Arcade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface2: #1a1a28;
+      --border: #2a2a40;
+      --text: #e8e8f0;
+      --muted: #7070a0;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── STARFIELD ── */
+    #stars {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .star {
+      position: absolute;
+      background: #fff;
+      border-radius: 50%;
+      animation: twinkle var(--d) ease-in-out infinite alternate;
+      opacity: 0;
+    }
+    @keyframes twinkle {
+      0%   { opacity: 0; transform: scale(0.5); }
+      100% { opacity: var(--o); transform: scale(1); }
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      padding: 60px 24px 32px;
+    }
+
+    .arcade-sign {
+      display: inline-block;
+      position: relative;
+    }
+
+    .arcade-sign h1 {
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #fff 0%, #a78bfa 40%, #60a5fa 70%, #34d399 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 30px rgba(167, 139, 250, 0.4));
+    }
+
+    .arcade-sign .neon-bar {
+      display: block;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #a78bfa, #60a5fa, #34d399, transparent);
+      border-radius: 2px;
+      margin-top: 8px;
+      animation: scanline 3s ease-in-out infinite;
+    }
+
+    @keyframes scanline {
+      0%, 100% { opacity: 0.5; transform: scaleX(0.8); }
+      50%       { opacity: 1;   transform: scaleX(1); }
+    }
+
+    .subtitle {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* ── FILTERS ── */
+    .filters {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 24px 40px;
+    }
+
+    .filter-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 6px 16px;
+      border-radius: 99px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .filter-btn:hover,
+    .filter-btn.active {
+      background: var(--accent-color, #7c3aed);
+      border-color: var(--accent-color, #7c3aed);
+      color: #fff;
+      box-shadow: 0 0 16px color-mix(in srgb, var(--accent-color, #7c3aed) 40%, transparent);
+    }
+    .filter-btn.active { --accent-color: #7c3aed; }
+
+    /* ── GRID ── */
+    .grid {
+      position: relative;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+      display: flex;
+      flex-direction: column;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px var(--card-color, #7c3aed);
+      border-color: var(--card-color, #7c3aed);
+    }
+
+    .card-preview {
+      height: 160px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--card-bg, var(--surface2));
+    }
+
+    .card-preview .big-icon {
+      font-size: 5rem;
+      filter: drop-shadow(0 0 20px var(--card-color, #7c3aed));
+      animation: float 3s ease-in-out infinite;
+      user-select: none;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-8px); }
+    }
+
+    .card-preview::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, transparent 60%, var(--surface) 100%);
+    }
+
+    .card-preview .scanlines {
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        transparent 0px,
+        transparent 3px,
+        rgba(0,0,0,0.08) 3px,
+        rgba(0,0,0,0.08) 4px
+      );
+      pointer-events: none;
+    }
+
+    .card-body {
+      padding: 16px 18px 18px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .card-stars {
+      display: flex;
+      gap: 2px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .star-filled { color: #f0a500; }
+    .star-empty  { color: #2a2a40; }
+
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tag {
+      background: color-mix(in srgb, var(--card-color, #7c3aed) 15%, transparent);
+      border: 1px solid color-mix(in srgb, var(--card-color, #7c3aed) 30%, transparent);
+      color: var(--card-color, #a78bfa);
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 99px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .card-desc {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.6;
+      flex: 1;
+    }
+
+    .card-play {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--card-color, #a78bfa);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      transition: gap 0.2s;
+    }
+
+    .card:hover .card-play {
+      gap: 12px;
+    }
+
+    .card-play .arrow {
+      font-size: 1.1rem;
+      transition: transform 0.2s;
+    }
+
+    .card:hover .card-play .arrow {
+      transform: translateX(4px);
+    }
+
+    /* ── BADGE ── */
+    .badge-hot {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 5;
+      background: #ef4444;
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 99px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.5); }
+      50%       { box-shadow: 0 0 20px rgba(239, 68, 68, 0.8); }
+    }
+
+    /* ── HIDDEN ── */
+    .card.hidden { display: none; }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      padding: 0 24px 40px;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+
+<div id="stars"></div>
+
+<header>
+  <div class="arcade-sign">
+    <h1>Noah's Arcade</h1>
+    <span class="neon-bar"></span>
+  </div>
+  <p class="subtitle">10 games &nbsp;·&nbsp; All classics &nbsp;·&nbsp; No quarters needed</p>
+</header>
+
+<div class="filters">
+  <button class="filter-btn active" data-filter="all">All Games</button>
+  <button class="filter-btn" data-filter="action">Action</button>
+  <button class="filter-btn" data-filter="strategy">Strategy</button>
+  <button class="filter-btn" data-filter="arcade">Arcade</button>
+  <button class="filter-btn" data-filter="puzzle">Puzzle</button>
+  <button class="filter-btn" data-filter="simulation">Simulation</button>
+</div>
+
+<div class="grid" id="game-grid">
+
+  <!-- GRAVITY WELL -->
+  <a href="gravity_well.html" class="card" style="--card-color:#60a5fa; --card-bg:#0a1628;" data-tags="action arcade">
+    <div class="card-preview" style="background: radial-gradient(ellipse at center, #0a1628 0%, #050d1a 100%);">
+      <div class="scanlines"></div>
+      <span class="big-icon">🌀</span>
+      <span class="badge-hot">HOT</span>
+    </div>
+    <div class="card-body">
+      <div class="card-header">
+        <span class="card-title">Gravity Well</span>
+        <div class="card-stars">
+          <span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span>
+        </div>
+      </div>
+      <div class="card-tags">
+        <span class="tag">Action</span>
+        <span class="tag">Arcade</span>
+        <span class="tag">Space</span>
+      </div>
+      <p class="card-desc">Anchor your ship to gravity wells and orbit enemies. Survive waves with piercing, explosive, and homing bullets in this physics-based space shooter.</p>
+      <div class="card-play">Play Now <span class="arrow">→</span></div>
+    </div>
+  </a>
+
+  <!-- ZOMBIE GAME -->
+  <a href="zombie_game.html" class="card" style="--card-color:#4ade80; --card-bg:#0a1f0a;" data-tags="action arcade">
+    <div class="card-preview" style="background: radial-gradient(ellipse at center, #0a1f0a 0%, #050f05 100%);">
+      <div class="scanlines"></div>
+      <span class="big-icon">🧟</span>
+      <span class="badge-hot">HOT</span>
+    </div>
+    <div class="card-body">
+      <div class="card-header">
+        <span class="card-title">Zombie Waves</span>
+        <div class="card-stars">
+          <span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span>
+        </div>
+      </div>
+      <div class="card-tags">
+        <span class="tag">Action</span>
+        <span class="tag">Survival</span>
+        <span class="tag">Shooter</span>
+      </div>
+      <p class="card-desc">Survive 10+ waves of undead. Upgrade your weapon's damage, fire rate, and bullet properties as the horde grows relentlessly larger.</p>
+      <div class="card-play">Play Now <span class="arrow">→</span></div>
+    </div>
+  </a>
+
+  <!-- STORE GAME -->
+  <a href="store_game.html" class="card" style="--card-color:#fbbf24; --card-bg:#1a1400;" data-tags="simulation strategy">
+    <div class="card-preview" style="background: radial-gradient(ellipse at center, #1a1400 0%, #0d0a00 100%);">
+      <div class="scanlines"></div>
+      <span class="big-icon">🏪</span>
+      <span class="badge-hot">HOT</span>
+    </div>
+    <div class="card-body">
+      <div class="card-header">
+        <span class="card-title">Corner Store Tycoon</span>
+        <div class="card-stars">
+          <span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span>
+        </div>
+      </div>
+      <div class="card-tags">
+        <span class="tag">Simulation</span>
+        <span class="tag">Tycoon</span>
+        <span class="tag">Strategy</span>
+      </div>
+      <p class="card-desc">Run your own corner store. Manage inventory, set prices, hire staff, and navigate weather and day-night cycles to grow your business empire.</p>
+      <div class="card-play">Play Now <span class="arrow">→</span></div>
+    </div>
+  </a>
+
+  <!-- CIVILISATION -->
+  <a href="civilisation.html" class="card" style="--card-color:#f97316; --card-bg:#1a0a00;" data-tags="strategy simulation">
+    <div class="card-preview" style="background: radial-gradient(ellipse at center, #1a0a00 0%, #0d0500 100%);">
+      <div class="scanlines"></div>
+      <span class="big-icon">🏛️</span>
+    </div>
+    <div class="card-body">
+      <div class="card-header">
+        <span class="card-title">Civilisation</span>
+        <div class="card-stars">
+          <span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-empty">★</span>
+        </div>
+      </div>
+      <div class="card-tags">
+        <span class="tag">Strategy</span>
+        <span class="tag">City Builder</span>
+        <span class="tag">4X</span>
+      </div>
+      <p class="card-desc">Build a settlement from scratch. Manage food, wood, stone, and gold. Assign workers, research technologies, and guide your people through the ages.</p>
+      <div class="card-play">Play Now <span class="arrow">→</span></div>
+    </div>
+  </a>
+
+  <!-- SURVIVE / √URVIVE -->
+  <a href="survive.html" class="card" style="--card-color:#a78bfa; --card-bg:#0f0a1a;" data-tags="arcade puzzle">
+    <div class="card-preview" style="background: radial-gradient(ellipse at center, #0f0a1a 0%, #07050d 100%);">
+      <div class="scanlines"></div>
+      <span class="big-icon">√</span>
+    </div>
+    <div class="card-body">
+      <div class="card-header">
+        <span class="card-title">√URVIVE</span>
+        <div class="card-stars">
+          <span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-empty">★</span>
+        </div>
+      </div>
+      <div class="card-tags">
+        <span class="tag">Arcade</span>
+        <span class="tag">Math</span>
+        <span class="tag">Survival</span>
+      </div>
+      <p class="card-desc">Enemies spawn with numbers. Collect perfect squares to destroy them. Build combos, keep up with escalating difficulty, and survive the math onslaught.</p>
+      <div class="card-play">Play Now <span class="arrow">→</span></div>
+    </div>
+  </a>
+
+  <!-- POLICE CHASE -->
+  <a href="police_chase.html" class="card" style="--card-color:#ef4444; --card-bg:#1a0505;" data-tags="action arcade">
+    <div class="card-preview" style="background: radial-gradient(ellipse at center, #1a0505 0%, #0d0202 100%);">
+      <div class="scanlines"></div>
+      <span class="big-icon">🚗</span>
+    </div>
+    <div class="card-body">
+      <div class="card-header">
+        <span class="card-title">DODGE</span>
+        <div class="card-stars">
+          <span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-empty">★</span>
+        </div>
+      </div>
+      <div class="card-tags">
+        <span class="tag">Action</span>
+        <span class="tag">Racing</span>
+        <span class="tag">Endless</span>
+      </div>
+      <p class="card-desc">Floor it and don't get caught. Weave through police cruisers, blast your nitro, and spend your cash on faster, sleeker rides and stat upgrades.</p>
+      <div class="card-play">Play Now <span class="arrow">→</span></div>
+    </div>
+  </a>
+
+  <!-- SHATTER -->
+  <a href="shatter.html" class="card" style="--card-color:#38bdf8; --card-bg:#001a2a;" data-tags="arcade puzzle">
+    <div class="card-preview" style="background: radial-gradient(ellipse at center, #001a2a 0%, #00080d 100%);">
+      <div class="scanlines"></div>
+      <span class="big-icon">🧱</span>
+    </div>
+    <div class="card-body">
+      <div class="card-header">
+        <span class="card-title">Shatter</span>
+        <div class="card-stars">
+          <span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-empty">★</span>
+        </div>
+      </div>
+      <div class="card-tags">
+        <span class="tag">Arcade</span>
+        <span class="tag">Breakout</span>
+        <span class="tag">Classic</span>
+      </div>
+      <p class="card-desc">Classic brick-breaker with a twist. Snag power-ups for a wide paddle and slow-motion, rack up combos, and push through progressively harder levels.</p>
+      <div class="card-play">Play Now <span class="arrow">→</span></div>
+    </div>
+  </a>
+
+  <!-- STACK -->
+  <a href="stack.html" class="card" style="--card-color:#34d399; --card-bg:#001a10;" data-tags="arcade puzzle">
+    <div class="card-preview" style="background: radial-gradient(ellipse at center, #001a10 0%, #000d08 100%);">
+      <div class="scanlines"></div>
+      <span class="big-icon">📦</span>
+    </div>
+    <div class="card-body">
+      <div class="card-header">
+        <span class="card-title">Stack</span>
+        <div class="card-stars">
+          <span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-empty">★</span>
+        </div>
+      </div>
+      <div class="card-tags">
+        <span class="tag">Arcade</span>
+        <span class="tag">Puzzle</span>
+        <span class="tag">Precision</span>
+      </div>
+      <p class="card-desc">Drop blocks on a shrinking tower. Time perfect placements for bonus size, chain combos, and see how high you can stack before the blocks slip away.</p>
+      <div class="card-play">Play Now <span class="arrow">→</span></div>
+    </div>
+  </a>
+
+  <!-- KIDNAP GAME -->
+  <a href="kidnap_game.html" class="card" style="--card-color:#fb923c; --card-bg:#1a0f00;" data-tags="puzzle arcade">
+    <div class="card-preview" style="background: radial-gradient(ellipse at center, #1a0f00 0%, #0d0700 100%);">
+      <div class="scanlines"></div>
+      <span class="big-icon">🏠</span>
+    </div>
+    <div class="card-body">
+      <div class="card-header">
+        <span class="card-title">Family Surprise!</span>
+        <div class="card-stars">
+          <span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-empty">★</span>
+        </div>
+      </div>
+      <div class="card-tags">
+        <span class="tag">Puzzle</span>
+        <span class="tag">Stealth</span>
+        <span class="tag">Grid</span>
+      </div>
+      <p class="card-desc">Sneak through a house collecting family members for a surprise — without tipping off the cat. Navigate mazes, manage lives, and out-fox Mittens.</p>
+      <div class="card-play">Play Now <span class="arrow">→</span></div>
+    </div>
+  </a>
+
+  <!-- WORLD SANDBOX -->
+  <a href="world_sandbox.html" class="card" style="--card-color:#818cf8; --card-bg:#0a0a1a;" data-tags="simulation">
+    <div class="card-preview" style="background: radial-gradient(ellipse at center, #0a0a1a 0%, #05050d 100%);">
+      <div class="scanlines"></div>
+      <span class="big-icon">🌍</span>
+    </div>
+    <div class="card-body">
+      <div class="card-header">
+        <span class="card-title">World Sandbox</span>
+        <div class="card-stars">
+          <span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-filled">★</span><span class="star-empty">★</span>
+        </div>
+      </div>
+      <div class="card-tags">
+        <span class="tag">Simulation</span>
+        <span class="tag">Sandbox</span>
+        <span class="tag">Chill</span>
+      </div>
+      <p class="card-desc">Play god with a procedural world. Control weather, time of day, wind, and terrain. Sunny, cloudy, rain, storm, snow — all at your fingertips.</p>
+      <div class="card-play">Play Now <span class="arrow">→</span></div>
+    </div>
+  </a>
+
+</div>
+
+<footer>
+  <p>Built with &lt;3 &nbsp;·&nbsp; Open a game and start playing</p>
+</footer>
+
+<script>
+  // ── STARFIELD ──
+  const starsEl = document.getElementById('stars');
+  for (let i = 0; i < 120; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = Math.random() * 2 + 0.5;
+    s.style.cssText = `
+      width: ${size}px; height: ${size}px;
+      left: ${Math.random() * 100}%;
+      top: ${Math.random() * 100}%;
+      --d: ${(Math.random() * 3 + 1).toFixed(1)}s;
+      --o: ${(Math.random() * 0.5 + 0.2).toFixed(2)};
+      animation-delay: ${(Math.random() * 4).toFixed(1)}s;
+    `;
+    starsEl.appendChild(s);
+  }
+
+  // ── FILTERS ──
+  const filterBtns = document.querySelectorAll('.filter-btn');
+  const cards = document.querySelectorAll('.card');
+
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const filter = btn.dataset.filter;
+      cards.forEach(card => {
+        const tags = card.dataset.tags || '';
+        if (filter === 'all' || tags.includes(filter)) {
+          card.classList.remove('hidden');
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+    });
+  });
+
+  // ── CARD HOVER GLOW ──
+  cards.forEach(card => {
+    card.addEventListener('mousemove', e => {
+      const rect = card.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width  * 100).toFixed(1);
+      const y = ((e.clientY - rect.top)  / rect.height * 100).toFixed(1);
+      card.style.setProperty('--mx', x + '%');
+      card.style.setProperty('--my', y + '%');
+    });
+  });
+</script>
+</body>
+</html>

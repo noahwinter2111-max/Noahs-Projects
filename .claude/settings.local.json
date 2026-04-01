@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx --version)",
+      "Bash(pip3 install:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(/usr/libexec/java_home -v 21)",
+      "Read(//Library/Java/JavaVirtualMachines/**)",
+      "Bash(brew list:*)",
+      "Bash(brew --version)",
+      "Bash(curl -s http://localhost:3001/kidnap_game.html)",
+      "Bash(curl -v http://127.0.0.1:3001/kidnap_game.html)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3002/survive.html)",
+      "Bash(curl -s http://127.0.0.1:3002/survive.html)",
+      "Bash(curl -v http://127.0.0.1:3002/survive.html)",
+      "Bash(curl -s http://localhost:3001/survive.html)",
+      "Bash(curl -v http://localhost:3001/survive.html)",
+      "Bash(grep -l \"three\\\\|THREE\\\\|WebGL\\\\|3d\\\\|babylon\" /Users/noahwinter/Desktop/Projects/square_root_game/*.html)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3003/gravity_well.html)",
+      "Read(//usr/local/**)",
+      "Read(//opt/homebrew/**)",
+      "Bash(python3 -c \"import http.server; print\\(''ok''\\)\")",
+      "Bash(npx serve:*)",
+      "Bash(ls /usr/local/bin/python*)",
+      "Bash(ls /opt/homebrew/bin/python*)",
+      "Bash(xattr /Users/noahwinter/Desktop/Projects/square_root_game/serve.py)"
+    ]
+  }
+}

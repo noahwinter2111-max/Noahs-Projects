@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Family Surprise! - Avoid the Cat</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a2e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-family: 'Courier New', monospace;
+    color: #eee;
+    overflow: hidden;
+  }
+  h1 {
+    font-size: 1.4rem;
+    margin-bottom: 8px;
+    color: #f5c842;
+    text-shadow: 0 0 8px #f5c84288;
+    letter-spacing: 2px;
+  }
+  #hud {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    color: #ccc;
+  }
+  #hud span { color: #f5c842; font-weight: bold; }
+  canvas {
+    border: 3px solid #333;
+    border-radius: 4px;
+    box-shadow: 0 0 30px #00000088;
+  }
+  #controls {
+    margin-top: 8px;
+    font-size: 0.75rem;
+    color: #777;
+    letter-spacing: 1px;
+  }
+  #overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #0009;
+    z-index: 10;
+  }
+  #overlay h2 {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+  }
+  #overlay p {
+    font-size: 1rem;
+    color: #aaa;
+    margin-bottom: 20px;
+    text-align: center;
+    max-width: 400px;
+  }
+  #overlay button {
+    padding: 10px 28px;
+    background: #f5c842;
+    color: #1a1a2e;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    cursor: pointer;
+    letter-spacing: 1px;
+  }
+  #overlay button:hover { background: #ffe066; }
+  #captured-list {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: #aaa;
+    height: 18px;
+  }
+</style>
+</head>
+<body>
+<h1>FAMILY SURPRISE!</h1>
+<div id="hud">
+  <div>CAPTURED: <span id="score">0</span>/5</div>
+  <div>LIVES: <span id="lives">3</span></div>
+  <div>LEVEL: <span id="level">1</span></div>
+</div>
+<div id="captured-list" id="fam-log"></div>
+<canvas id="c" width="700" height="500"></canvas>
+<div id="controls">WASD / ARROW KEYS to move &nbsp;|&nbsp; Grab family members &nbsp;|&nbsp; Avoid MITTENS the cat!</div>
+
+<div id="overlay">
+  <h2 style="color:#f5c842">🏠 FAMILY SURPRISE!</h2>
+  <p>Sneak around the house and surprise all 5 family members before <strong style="color:#ff6b6b">Mittens</strong> catches you!<br><br>
+  Mittens gets smarter each level. Good luck.</p>
+  <button onclick="startGame()">START SNEAKING</button>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+const TILE = 40;
+const COLS = W / TILE; // 17.5 — use floor
+const ROWS = H / TILE; // 12.5
+
+// --- Wall map (1 = wall, 0 = floor) ---
+// 18 cols x 13 rows (slight over-bounds handled)
+const MAP = [
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,1,1,0,1,1,1,1,0,1,1,1,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
+  [1,1,1,0,1,1,1,0,0,0,0,0,1,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,1,0,0,0,1,1,0,1,0,0,0,0,0,1],
+  [1,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+];
+
+const FAMILY = [
+  { name: "Mom", emoji: "👩", color: "#ff9eb5" },
+  { name: "Dad", emoji: "👨", color: "#7ec8e3" },
+  { name: "Grandma", emoji: "👵", color: "#c8a2c8" },
+  { name: "Little Sis", emoji: "👧", color: "#98fb98" },
+  { name: "Baby Bro", emoji: "👶", color: "#ffd700" },
+];
+
+let player, cat, members, lives, level, captured, gameRunning, flashTimer, deathAnim;
+let keys = {};
+
+function isWall(px, py, margin=14) {
+  // Check corners of bounding box
+  const points = [
+    [px - margin, py - margin],
+    [px + margin, py - margin],
+    [px - margin, py + margin],
+    [px + margin, py + margin],
+  ];
+  for (let [x, y] of points) {
+    const col = Math.floor(x / TILE);
+    const row = Math.floor(y / TILE);
+    if (row < 0 || row >= MAP.length || col < 0 || col >= MAP[0].length) return true;
+    if (MAP[row][col] === 1) return true;
+  }
+  return false;
+}
+
+function randomFloor() {
+  let x, y;
+  do {
+    x = Math.floor(Math.random() * (MAP[0].length - 2) + 1) * TILE + TILE/2;
+    y = Math.floor(Math.random() * (MAP.length - 2) + 1) * TILE + TILE/2;
+  } while (isWall(x, y));
+  return { x, y };
+}
+
+function startGame() {
+  document.getElementById('overlay').style.display = 'none';
+  lives = 3;
+  level = 1;
+  captured = 0;
+  gameRunning = true;
+  flashTimer = 0;
+  deathAnim = null;
+  initLevel();
+  document.getElementById('lives').textContent = lives;
+  document.getElementById('level').textContent = level;
+  document.getElementById('score').textContent = captured;
+  document.getElementById('fam-log').textContent = '';
+  requestAnimationFrame(loop);
+}
+
+function initLevel() {
+  let sp = randomFloor();
+  player = { x: sp.x, y: sp.y, speed: 120, trail: [] };
+
+  let cp = randomFloor();
+  // Make sure cat spawns far from player
+  let attempts = 0;
+  while (dist(cp.x, cp.y, player.x, player.y) < 200 && attempts < 50) {
+    cp = randomFloor(); attempts++;
+  }
+  const catSpeed = 55 + level * 18;
+  cat = { x: cp.x, y: cp.y, speed: catSpeed, angle: 0, wobble: 0, alertTimer: 0 };
+
+  members = FAMILY.map((f, i) => {
+    let pos = randomFloor();
+    let att = 0;
+    while (dist(pos.x, pos.y, player.x, player.y) < 120 && att < 30) {
+      pos = randomFloor(); att++;
+    }
+    return { ...f, ...pos, alive: true, floatOff: 0, collected: false };
+  });
+}
+
+function dist(x1, y1, x2, y2) {
+  return Math.hypot(x2 - x1, y2 - y1);
+}
+
+let lastTime = null;
+function loop(ts) {
+  if (!gameRunning) return;
+  const dt = lastTime ? Math.min((ts - lastTime) / 1000, 0.05) : 0.016;
+  lastTime = ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// Simple pathfinding: steer toward player, avoid walls
+function catMove(dt) {
+  if (deathAnim) return;
+  const speed = cat.speed * dt;
+  const dx = player.x - cat.x;
+  const dy = player.y - cat.y;
+  const angle = Math.atan2(dy, dx);
+
+  // Try direct path first, then angled fallbacks
+  const tries = [angle, angle + 0.5, angle - 0.5, angle + 1.0, angle - 1.0, angle + Math.PI/2, angle - Math.PI/2];
+  for (let a of tries) {
+    const nx = cat.x + Math.cos(a) * speed;
+    const ny = cat.y + Math.sin(a) * speed;
+    if (!isWall(nx, ny, 12)) {
+      cat.x = nx;
+      cat.y = ny;
+      cat.angle = a;
+      break;
+    }
+  }
+  cat.wobble += dt * 8;
+}
+
+function update(dt) {
+  if (deathAnim) {
+    deathAnim.t += dt;
+    if (deathAnim.t > 1.5) {
+      deathAnim = null;
+      if (lives <= 0) {
+        endGame(false);
+      } else {
+        // respawn on same level
+        let sp = randomFloor();
+        player = { x: sp.x, y: sp.y, speed: 120, trail: [] };
+        let cp = randomFloor();
+        let att = 0;
+        while (dist(cp.x, cp.y, player.x, player.y) < 200 && att < 50) { cp = randomFloor(); att++; }
+        cat.x = cp.x; cat.y = cp.y;
+      }
+    }
+    return;
+  }
+
+  // Player movement
+  let dx = 0, dy = 0;
+  if (keys['ArrowLeft']  || keys['a'] || keys['A']) dx -= 1;
+  if (keys['ArrowRight'] || keys['d'] || keys['D']) dx += 1;
+  if (keys['ArrowUp']    || keys['w'] || keys['W']) dy -= 1;
+  if (keys['ArrowDown']  || keys['s'] || keys['S']) dy += 1;
+
+  if (dx !== 0 && dy !== 0) { dx *= 0.707; dy *= 0.707; }
+
+  const spd = player.speed * dt;
+  const nx = player.x + dx * spd;
+  const ny = player.y + dy * spd;
+
+  if (!isWall(nx, player.y)) player.x = nx;
+  if (!isWall(player.x, ny)) player.y = ny;
+
+  // Trail
+  player.trail.push({ x: player.x, y: player.y, a: 1 });
+  if (player.trail.length > 8) player.trail.shift();
+  player.trail.forEach(t => t.a -= dt * 3);
+
+  // Cat movement
+  catMove(dt);
+
+  // Check cat collision
+  if (dist(cat.x, cat.y, player.x, player.y) < 22) {
+    lives--;
+    document.getElementById('lives').textContent = lives;
+    deathAnim = { x: player.x, y: player.y, t: 0 };
+    return;
+  }
+
+  // Check family member collection
+  for (let m of members) {
+    if (!m.collected && dist(m.x, m.y, player.x, player.y) < 28) {
+      m.collected = true;
+      captured++;
+      document.getElementById('score').textContent = captured;
+      document.getElementById('fam-log').textContent = `Grabbed: ${m.emoji} ${m.name}!`;
+      if (captured >= 5) {
+        setTimeout(() => endGame(true), 300);
+      }
+    }
+  }
+}
+
+function endGame(win) {
+  gameRunning = false;
+  const ov = document.getElementById('overlay');
+  ov.style.display = 'flex';
+  ov.innerHTML = win
+    ? `<h2 style="color:#98fb98">🎉 FAMILY SURPRISED!</h2>
+       <p>You collected all 5 family members!<br>Mittens never stood a chance.</p>
+       <button onclick="nextLevel()">NEXT LEVEL ▶</button>`
+    : `<h2 style="color:#ff6b6b">😿 MITTENS WINS</h2>
+       <p>Mittens caught you too many times.<br>The family remains un-surprised.</p>
+       <button onclick="startGame()">TRY AGAIN</button>`;
+}
+
+function nextLevel() {
+  level++;
+  captured = 0;
+  document.getElementById('score').textContent = captured;
+  document.getElementById('level').textContent = level;
+  document.getElementById('fam-log').textContent = '';
+  document.getElementById('overlay').style.display = 'none';
+  deathAnim = null;
+  initLevel();
+  gameRunning = true;
+  lastTime = null;
+  requestAnimationFrame(loop);
+}
+
+// ---- DRAWING ----
+
+function drawMap() {
+  for (let r = 0; r < MAP.length; r++) {
+    for (let c = 0; c < MAP[0].length; c++) {
+      const x = c * TILE, y = r * TILE;
+      if (MAP[r][c] === 1) {
+        // Wall
+        ctx.fillStyle = '#2c2c3e';
+        ctx.fillRect(x, y, TILE, TILE);
+        ctx.fillStyle = '#3a3a55';
+        ctx.fillRect(x+1, y+1, TILE-2, 4);
+        ctx.strokeStyle = '#1a1a2e';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, TILE, TILE);
+      } else {
+        // Floor
+        const shade = ((r + c) % 2 === 0) ? '#23233a' : '#1e1e33';
+        ctx.fillStyle = shade;
+        ctx.fillRect(x, y, TILE, TILE);
+      }
+    }
+  }
+}
+
+function drawMember(m) {
+  if (m.collected) return;
+  ctx.save();
+  ctx.translate(m.x, m.y);
+  // Glow
+  ctx.shadowColor = m.color;
+  ctx.shadowBlur = 12;
+  // Bounce
+  const bob = Math.sin(Date.now() / 400 + m.x) * 3;
+  ctx.translate(0, bob);
+  // Circle bg
+  ctx.beginPath();
+  ctx.arc(0, 0, 16, 0, Math.PI*2);
+  ctx.fillStyle = m.color + '44';
+  ctx.fill();
+  ctx.strokeStyle = m.color;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Emoji
+  ctx.shadowBlur = 0;
+  ctx.font = '20px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(m.emoji, 0, 0);
+  // Name label
+  ctx.font = '8px monospace';
+  ctx.fillStyle = '#fff9';
+  ctx.fillText(m.name, 0, 22);
+  ctx.restore();
+}
+
+function drawPlayer() {
+  if (deathAnim) return; // hidden during death
+  // Trail
+  for (let i = 0; i < player.trail.length; i++) {
+    const t = player.trail[i];
+    const a = Math.max(0, t.a * 0.3);
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, 8, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(100,200,255,${a})`;
+    ctx.fill();
+  }
+  ctx.save();
+  ctx.translate(player.x, player.y);
+  // Shadow
+  ctx.beginPath();
+  ctx.ellipse(0, 12, 12, 5, 0, 0, Math.PI*2);
+  ctx.fillStyle = '#0006';
+  ctx.fill();
+  // Body
+  ctx.beginPath();
+  ctx.arc(0, 0, 14, 0, Math.PI*2);
+  ctx.fillStyle = '#4fc3f7';
+  ctx.shadowColor = '#4fc3f7';
+  ctx.shadowBlur = 10;
+  ctx.fill();
+  // Face
+  ctx.font = '18px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowBlur = 0;
+  ctx.fillText('🕵️', 0, 0);
+  ctx.restore();
+}
+
+function drawCat() {
+  const t = Date.now() / 1000;
+  ctx.save();
+  ctx.translate(cat.x, cat.y);
+  ctx.rotate(cat.angle + Math.PI/2);
+
+  // Alert ring when close to player
+  const d = dist(cat.x, cat.y, player.x, player.y);
+  if (d < 120) {
+    const alpha = (1 - d/120) * 0.6;
+    ctx.beginPath();
+    ctx.arc(0, 0, 20 + Math.sin(t*6)*3, 0, Math.PI*2);
+    ctx.strokeStyle = `rgba(255,80,80,${alpha})`;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  ctx.rotate(-cat.angle - Math.PI/2);
+
+  // Cat body
+  ctx.beginPath();
+  ctx.arc(0, 0, 15, 0, Math.PI*2);
+  ctx.fillStyle = '#ff6b6b';
+  ctx.shadowColor = '#ff0000';
+  ctx.shadowBlur = d < 100 ? 20 : 8;
+  ctx.fill();
+  // Cat emoji
+  ctx.font = '20px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowBlur = 0;
+  const wobble = Math.sin(cat.wobble) * 0.15;
+  ctx.rotate(wobble);
+  ctx.fillText('🐱', 0, 0);
+  // Name tag
+  ctx.rotate(-wobble);
+  ctx.font = 'bold 7px monospace';
+  ctx.fillStyle = '#ff9999';
+  ctx.fillText('MITTENS', 0, 22);
+  ctx.restore();
+}
+
+function drawDeathAnim() {
+  if (!deathAnim) return;
+  const p = deathAnim.t / 1.5;
+  const r = p * 60;
+  ctx.save();
+  ctx.translate(deathAnim.x, deathAnim.y);
+  ctx.globalAlpha = 1 - p;
+  ctx.font = `${30 + p*20}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('😱', 0, -r * 0.5);
+  // Stars
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + p * 3;
+    const sr = r * 0.8;
+    ctx.font = '16px serif';
+    ctx.fillText('⭐', Math.cos(a)*sr, Math.sin(a)*sr);
+  }
+  ctx.restore();
+}
+
+function drawHouseDetails() {
+  // Draw some furniture hints
+  const furniture = [
+    { r: 1, c: 1, w: 2, h: 1.5, color: '#4a3728', label: '🛋️' },
+    { r: 8, c: 8, w: 1.5, h: 1, color: '#5a4a28', label: '🛏️' },
+    { r: 2, c: 13, w: 1.2, h: 1.2, color: '#3a5a28', label: '🪴' },
+    { r: 9, c: 14, w: 1, h: 1, color: '#4a2828', label: '📺' },
+    { r: 1, c: 8, w: 1.5, h: 1, color: '#2a4a5a', label: '🚿' },
+  ];
+  for (let f of furniture) {
+    const x = f.c * TILE, y = f.r * TILE;
+    const w = f.w * TILE, h = f.h * TILE;
+    // Check it's on floor
+    const col = Math.floor(f.c + f.w/2), row = Math.floor(f.r + f.h/2);
+    if (row < MAP.length && col < MAP[0].length && MAP[row][col] === 0) {
+      ctx.fillStyle = f.color + '88';
+      ctx.fillRect(x+2, y+2, w-4, h-4);
+      ctx.font = '18px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(f.label, x + w/2, y + h/2);
+    }
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  drawMap();
+  drawHouseDetails();
+  for (let m of members) drawMember(m);
+  drawPlayer();
+  drawCat();
+  drawDeathAnim();
+
+  // Vignette
+  const grad = ctx.createRadialGradient(W/2, H/2, H*0.3, W/2, H/2, H*0.75);
+  grad.addColorStop(0, 'transparent');
+  grad.addColorStop(1, 'rgba(0,0,0,0.45)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+}
+
+// Input
+document.addEventListener('keydown', e => { keys[e.key] = true; e.preventDefault(); });
+document.addEventListener('keyup',  e => { keys[e.key] = false; });
+</script>
+</body>
+</html>

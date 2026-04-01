@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Safari Maps</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Roboto', Arial, sans-serif; overflow: hidden; user-select: none; }
+#game { position: relative; width: 100vw; height: 100vh; cursor: crosshair; }
+canvas { display: block; position: absolute; top: 0; left: 0; }
+#fog-canvas { pointer-events: none; }
+
+/* ── Search bar ── */
+#search-bar {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  background: white; border-radius: 24px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.12);
+  display: flex; align-items: center; padding: 0 20px;
+  height: 52px; gap: 12px; min-width: 340px; z-index: 200;
+  transition: box-shadow 0.2s;
+}
+#search-bar:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.15); }
+#search-bar .s-icon { color: #9aa0a6; font-size: 17px; }
+#search-bar input {
+  border: none; outline: none; font-family: 'Roboto', sans-serif;
+  font-size: 16px; color: #3c4043; flex: 1; background: transparent;
+}
+#search-bar input::placeholder { color: #9aa0a6; }
+#search-bar .badge {
+  background: #e8f0fe; color: #1a73e8; font-size: 12px; font-weight: 500;
+  padding: 4px 10px; border-radius: 12px; white-space: nowrap;
+}
+
+/* ── Right-side UI ── */
+#right-ui {
+  position: absolute; right: 12px; top: 12px;
+  display: flex; flex-direction: column; gap: 8px; z-index: 200; align-items: flex-end;
+}
+
+/* Discovery panel */
+#discovery-panel {
+  background: white; border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25), 0 4px 12px rgba(0,0,0,0.12);
+  padding: 14px 16px; min-width: 220px;
+}
+#discovery-panel h3 {
+  font-size: 10px; color: #9aa0a6; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
+}
+.a-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; color: #3c4043; }
+.a-row.dim { color: #c5c8cc; }
+.a-dot { width: 8px; height: 8px; border-radius: 50%; background: #34a853; flex-shrink: 0; }
+.a-row.dim .a-dot { background: #e0e0e0; }
+#disc-footer { margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0f0f0; font-size: 11px; color: #9aa0a6; }
+
+/* ── Bottom UI ── */
+#bottom-ui {
+  position: absolute; right: 12px; bottom: 28px;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 10px; z-index: 200;
+}
+#zoom-controls {
+  background: white; border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3); overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.zoom-btn {
+  width: 40px; height: 40px; background: white; border: none;
+  cursor: pointer; font-size: 20px; color: #5f6368; font-weight: 300;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s; border-bottom: 1px solid #e0e0e0;
+}
+.zoom-btn:last-child { border-bottom: none; }
+.zoom-btn:hover { background: #f8f9fa; }
+#logo {
+  display: flex; align-items: baseline; gap: 1px;
+  font-size: 16px; font-weight: 700; letter-spacing: -0.5px;
+}
+.la{color:#4285F4}.lb{color:#EA4335}.lc{color:#FBBC05}.ld{color:#4285F4}.le{color:#34A853}.lf{color:#EA4335}
+.lm{color:#1a73e8; margin-left: 2px;}
+#attribution { font-size: 10px; color: #70757a; }
+#attribution a { color: #1a73e8; text-decoration: none; }
+
+/* ── Scale bar ── */
+#scale-wrap {
+  position: absolute; left: 12px; bottom: 28px; z-index: 200;
+}
+#scale-label { font-size: 10px; color: #3c4043; margin-bottom: 3px; }
+#scale-line { width: 72px; height: 3px; border: 2px solid #5f6368; border-top: none; }
+
+/* ── Minimap ── */
+#minimap-wrap {
+  position: absolute; left: 12px; bottom: 56px; z-index: 200;
+  border-radius: 6px; overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4); border: 2px solid white;
+}
+
+/* ── Notification ── */
+#notif {
+  position: absolute; top: 80px; left: 50%; transform: translateX(-50%) translateY(-10px);
+  background: white; border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  padding: 14px 20px; z-index: 400;
+  display: flex; align-items: center; gap: 14px;
+  opacity: 0; transition: opacity 0.3s, transform 0.3s; pointer-events: none;
+  min-width: 320px;
+}
+#notif.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#notif-ico { font-size: 36px; }
+#notif-title { font-size: 15px; font-weight: 500; color: #202124; }
+#notif-sub { font-size: 12px; color: #70757a; margin-top: 3px; }
+
+/* ── Info card (Google Maps bottom sheet) ── */
+#info-card {
+  position: absolute; bottom: -200px; left: 50%; transform: translateX(-50%);
+  background: white; border-radius: 16px 16px 0 0;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.15), 0 -8px 30px rgba(0,0,0,0.1);
+  padding: 20px 24px 28px;
+  width: min(480px, 92vw); z-index: 300;
+  transition: bottom 0.35s cubic-bezier(0.4,0,0.2,1);
+}
+#info-card.open { bottom: 0; }
+#card-handle { width: 32px; height: 4px; background: #dadce0; border-radius: 2px; margin: 0 auto 16px; }
+#card-top { display: flex; align-items: flex-start; gap: 16px; }
+#card-emoji-bg {
+  width: 56px; height: 56px; border-radius: 12px;
+  background: #fef3cd; display: flex; align-items: center; justify-content: center;
+  font-size: 32px; flex-shrink: 0;
+}
+#card-info { flex: 1; }
+#card-name { font-size: 18px; font-weight: 500; color: #202124; }
+#card-type { font-size: 12px; color: #70757a; margin-top: 3px; }
+#card-close {
+  background: none; border: none; cursor: pointer;
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #5f6368; font-size: 18px; flex-shrink: 0;
+  transition: background 0.15s;
+}
+#card-close:hover { background: #f1f3f4; }
+#card-desc { margin-top: 14px; font-size: 14px; color: #3c4043; line-height: 1.6; }
+#card-tags { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.card-tag {
+  font-size: 12px; padding: 5px 12px; border-radius: 16px; border: 1px solid #dadce0;
+  color: #3c4043; display: flex; align-items: center; gap: 5px;
+}
+.card-tag.green { background: #e6f4ea; border-color: #ceead6; color: #137333; }
+.card-tag.blue { background: #e8f0fe; border-color: #c5d9fb; color: #1a73e8; }
+</style>
+</head>
+<body>
+<div id="game">
+  <canvas id="map-canvas"></canvas>
+  <canvas id="fog-canvas"></canvas>
+
+  <div id="search-bar">
+    <span class="s-icon">🔍</span>
+    <input type="text" placeholder="Search Safari Maps" readonly>
+    <span class="badge">🦁 Wildlife</span>
+  </div>
+
+  <div id="right-ui">
+    <div id="discovery-panel">
+      <h3>Wildlife Discovered</h3>
+      <div id="animal-list"></div>
+      <div id="disc-footer">0 / 12 species found</div>
+    </div>
+  </div>
+
+  <div id="bottom-ui">
+    <div id="zoom-controls">
+      <button class="zoom-btn" id="zoom-in">+</button>
+      <button class="zoom-btn" id="zoom-out">−</button>
+    </div>
+    <div id="logo">
+      <span class="la">S</span><span class="lb">a</span><span class="lc">f</span>
+      <span class="ld">a</span><span class="le">r</span><span class="lf">i</span>
+      <span class="lm">Maps</span>
+    </div>
+    <div id="attribution">©2024 Safari Maps · <a href="#">Terms</a></div>
+  </div>
+
+  <div id="scale-wrap">
+    <div id="scale-label">500 m</div>
+    <div id="scale-line"></div>
+  </div>
+
+  <div id="minimap-wrap">
+    <canvas id="minimap" width="140" height="140"></canvas>
+  </div>
+
+  <div id="notif">
+    <div id="notif-ico">🦁</div>
+    <div><div id="notif-title">Discovery!</div><div id="notif-sub">desc</div></div>
+  </div>
+
+  <div id="info-card">
+    <div id="card-handle"></div>
+    <div id="card-top">
+      <div id="card-emoji-bg"><span id="card-emoji">🦁</span></div>
+      <div id="card-info">
+        <div id="card-name">Lion Pride</div>
+        <div id="card-type">Wildlife · Predator</div>
+      </div>
+      <button id="card-close">✕</button>
+    </div>
+    <div id="card-desc">Description here</div>
+    <div id="card-tags"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// SETUP
+// ══════════════════════════════════════════════════════════
+const mapC = document.getElementById('map-canvas');
+const fogC = document.getElementById('fog-canvas');
+const mmC  = document.getElementById('minimap');
+const ctx  = mapC.getContext('2d');
+const fCtx = fogC.getContext('2d');
+const mCtx = mmC.getContext('2d');
+
+let W = window.innerWidth, H = window.innerHeight;
+mapC.width = fogC.width = W;
+mapC.height = fogC.height = H;
+
+window.addEventListener('resize', () => {
+  W = window.innerWidth; H = window.innerHeight;
+  mapC.width = fogC.width = W; mapC.height = fogC.height = H;
+});
+
+// ══════════════════════════════════════════════════════════
+// WORLD
+// ══════════════════════════════════════════════════════════
+const WW = 100, WH = 100;
+let TILE = 52;
+
+const T = { SAV:0, GRS:1, BUS:2, WAT:3, DWA:4, SND:5, ROK:6, PTH:7, CMP:8 };
+const C = {
+  0:'#e8d8a8', 1:'#c4dc96', 2:'#8ab85c', 3:'#a8d4f0', 4:'#7cbce8',
+  5:'#f0e0a8', 6:'#ccb898', 7:'#f8f4ec', 8:'#f2ece0'
+};
+
+function hash(x, y, s=0) {
+  const v = Math.sin(x*127.1+y*311.7+s*74.3)*43758.5453;
+  return v - Math.floor(v);
+}
+function sn(x,y,s){
+  const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy;
+  const u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);
+  return hash(ix,iy,s)*(1-u)*(1-v)+hash(ix+1,iy,s)*u*(1-v)+
+         hash(ix,iy+1,s)*(1-u)*v+hash(ix+1,iy+1,s)*u*v;
+}
+function fn(x,y,s,o=5){let v=0,a=0.5,f=1,m=0;for(let i=0;i<o;i++){v+=sn(x*f,y*f,s+i*100)*a;m+=a;a*=0.5;f*=2;}return v/m;}
+
+const world = [], vis = [];
+function genWorld(){
+  for(let y=0;y<WH;y++){
+    world[y]=[]; vis[y]=new Float32Array(WW);
+    for(let x=0;x<WW;x++){
+      const h=fn(x/18,y/18,1), m=fn(x/15,y/15,2);
+      if(h<0.30) world[y][x]=T.DWA;
+      else if(h<0.34) world[y][x]=T.WAT;
+      else if(h<0.38) world[y][x]=T.SND;
+      else if(h>0.78&&m<0.38) world[y][x]=T.ROK;
+      else if(m>0.72) world[y][x]=T.BUS;
+      else if(m>0.56) world[y][x]=T.GRS;
+      else world[y][x]=T.SAV;
+    }
+  }
+  addTrail(8,18,90,42); addTrail(49,4,51,96);
+  addTrail(12,60,88,65); addTrail(4,48,96,52);
+  addCamp(50,50,3); addCamp(20,22,2); addCamp(78,26,2); addCamp(26,76,2); addCamp(74,74,2);
+}
+function addTrail(x1,y1,x2,y2){
+  const n=Math.max(Math.abs(x2-x1),Math.abs(y2-y1))*2;
+  for(let i=0;i<=n;i++){
+    const t=i/n, tx=Math.round(x1+(x2-x1)*t+Math.sin(i*0.4)*2.5), ty=Math.round(y1+(y2-y1)*t+Math.cos(i*0.35)*2.5);
+    if(tx>=0&&tx<WW&&ty>=0&&ty<WH&&world[ty][tx]!==T.WAT&&world[ty][tx]!==T.DWA) world[ty][tx]=T.PTH;
+  }
+}
+function addCamp(cx,cy,r){
+  for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++){
+    const x=cx+dx,y=cy+dy;
+    if(x>=0&&x<WW&&y>=0&&y<WH&&dx*dx+dy*dy<=r*r&&world[y][x]!==T.WAT&&world[y][x]!==T.DWA) world[y][x]=T.CMP;
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// POINTS OF INTEREST
+// ══════════════════════════════════════════════════════════
+const ANIMALS=[
+  {e:'🦁',name:'Lion Pride',type:'Predator · Big Five',desc:'A pride of lions resting in the shade of an acacia tree. The dominant male surveys his territory.',x:0,y:0,disc:false},
+  {e:'🐘',name:'Elephant Herd',type:'Herbivore · Big Five',desc:'A matriarch leads her family across the open plain. Young calves stay close to their mothers.',x:0,y:0,disc:false},
+  {e:'🦒',name:'Giraffe Tower',type:'Herbivore · Tallest Land Animal',desc:'A tower of giraffes feeding from treetops. Their long necks reach branches no other animal can.',x:0,y:0,disc:false},
+  {e:'🦓',name:'Zebra Dazzle',type:'Herbivore · Plains Dweller',desc:'A dazzle of zebras moving in unison. Their stripes may confuse predators when the herd runs.',x:0,y:0,disc:false},
+  {e:'🐊',name:'Nile Crocodile',type:'Predator · Apex Reptile',desc:'An ancient predator motionless at the water\'s edge. Crocodiles have barely changed in 200 million years.',x:0,y:0,disc:false},
+  {e:'🦏',name:'White Rhino',type:'Herbivore · Big Five · Endangered',desc:'A rare white rhinoceros grazes peacefully. Less than 20,000 remain in the wild today.',x:0,y:0,disc:false},
+  {e:'🐆',name:'Leopard',type:'Predator · Big Five',desc:'A solitary leopard rests in a fever tree. The most elusive of the Big Five.',x:0,y:0,disc:false},
+  {e:'🦩',name:'Flamingo Flock',type:'Bird · Filter Feeder',desc:'A flamboyance of pink flamingos wading in the shallows, filtering algae with their bent bills.',x:0,y:0,disc:false},
+  {e:'🦅',name:'Martial Eagle',type:'Bird · Apex Predator',desc:'Africa\'s largest eagle, capable of knocking a man off his feet. Surveys the savanna from great heights.',x:0,y:0,disc:false},
+  {e:'🐃',name:'Cape Buffalo',type:'Herbivore · Big Five',desc:'A herd of Cape buffalo — one of Africa\'s most dangerous animals. They never forget a grudge.',x:0,y:0,disc:false},
+  {e:'🦛',name:'Hippo Pool',type:'Herbivore · Semi-Aquatic',desc:'Hippos cooling in the river, only eyes and ears above water. Responsible for more human deaths than lions.',x:0,y:0,disc:false},
+  {e:'🐒',name:'Baboon Troop',type:'Primate · Omnivore',desc:'A troop of baboons foraging noisily. Complex social hierarchy with dominant males protecting the group.',x:0,y:0,disc:false},
+];
+const LMARKS=[
+  {e:'⛺',name:'Central Camp',type:'Safari Base',desc:'Your base of operations in the heart of the savanna. Guides, jeeps, and cold drinks available.',x:50,y:50,disc:false},
+  {e:'💧',name:'Great Watering Hole',type:'Natural Landmark',desc:'The lifeblood of the ecosystem. Every animal visits here sooner or later.',x:0,y:0,disc:false},
+  {e:'🪨',name:'Pride Rock',type:'Geological Feature',desc:'A dramatic kopje rising from the plain. Offers a panoramic view of the entire savanna.',x:0,y:0,disc:false},
+  {e:'🌳',name:'Ancient Baobab',type:'Botanical Landmark',desc:'Estimated to be over 1,000 years old. The "Tree of Life" stores thousands of litres of water.',x:0,y:0,disc:false},
+  {e:'🏕️',name:'North Outpost',type:'Ranger Station',desc:'A remote ranger station monitoring wildlife in the northern plains.',x:20,y:22,disc:false},
+  {e:'🏕️',name:'East Research Camp',type:'Research Station',desc:'A field station for wildlife biologists studying elephant migration patterns.',x:78,y:26,disc:false},
+  {e:'🏕️',name:'South Safari Camp',type:'Eco-Tourism Camp',desc:'A luxury eco-camp where guests can watch the sunset over the southern flats.',x:26,y:76,disc:false},
+];
+
+function placeEntities(){
+  const land=[],water=[];
+  for(let y=5;y<WH-5;y++) for(let x=5;x<WW-5;x++){
+    const t=world[y][x];
+    if(t!==T.WAT&&t!==T.DWA&&t!==T.CMP&&t!==T.PTH) land.push({x,y});
+    if(t===T.SND||t===T.SAV){
+      for(const[dx,dy]of[[0,1],[0,-1],[1,0],[-1,0]]){
+        const nt=world[y+dy]?.[x+dx];
+        if(nt===T.WAT||nt===T.DWA){water.push({x,y});break;}
+      }
+    }
+  }
+  const ls=[...land].sort(()=>Math.random()-0.5);
+  const ws=[...water].sort(()=>Math.random()-0.5);
+  let li=0,wi=0;
+  ANIMALS.forEach(a=>{
+    const isWater=a.e==='🐊'||a.e==='🦛'||a.e==='🦩';
+    const t=isWater&&ws.length>wi?ws[wi++]:ls[li++];
+    a.x=t.x; a.y=t.y;
+  });
+  let wc={x:35,y:35};
+  outer:for(let y=8;y<WH-8;y++)for(let x=8;x<WW-8;x++)if(world[y][x]===T.DWA){wc={x,y};break outer;}
+  LMARKS[1].x=wc.x; LMARKS[1].y=wc.y;
+  let rc={x:65,y:25};
+  outer2:for(let y=8;y<WH-8;y++)for(let x=8;x<WW-8;x++)if(world[y][x]===T.ROK){rc={x,y};break outer2;}
+  LMARKS[2].x=rc.x; LMARKS[2].y=rc.y;
+  let bc={x:15,y:60};
+  outer3:for(let y=8;y<WH-8;y++)for(let x=8;x<WW-8;x++)if(world[y][x]===T.BUS){bc={x,y};break outer3;}
+  LMARKS[3].x=bc.x; LMARKS[3].y=bc.y;
+}
+
+// ══════════════════════════════════════════════════════════
+// PLAYER & CAMERA
+// ══════════════════════════════════════════════════════════
+let pX=50.5, pY=50.5;          // tile coords (float)
+let camX=pX-W/(2*TILE), camY=pY-H/(2*TILE);
+let tgtX=null, tgtY=null;      // click-to-move target
+const SPEED=0.14;
+const VISION=8, DISC_R=2.2;
+
+const keys={};
+window.addEventListener('keydown',e=>keys[e.key]=true);
+window.addEventListener('keyup',e=>keys[e.key]=false);
+
+// ══════════════════════════════════════════════════════════
+// FOG OF WAR — smooth radial gradient approach
+// ══════════════════════════════════════════════════════════
+// visited: float 0..1 per tile (how well explored)
+const visited = [];
+for(let y=0;y<WH;y++) visited[y]=new Float32Array(WW);
+
+let fogDirty=true;
+// offscreen fog: 4px per tile for smooth gradients
+const FOG_S=4;
+const fogOff=document.createElement('canvas');
+fogOff.width=WW*FOG_S; fogOff.height=WH*FOG_S;
+const foCtx=fogOff.getContext('2d');
+
+function updateVis(){
+  const px=Math.floor(pX), py=Math.floor(pY);
+  let changed=false;
+  for(let dy=-VISION;dy<=VISION;dy++) for(let dx=-VISION;dx<=VISION;dx++){
+    const d=Math.sqrt(dx*dx+dy*dy);
+    if(d>VISION) continue;
+    const tx=px+dx, ty=py+dy;
+    if(tx<0||tx>=WW||ty<0||ty>=WH) continue;
+    const newV=Math.max(visited[ty][tx], d<VISION*0.65?1.0:0.55);
+    if(newV!==visited[ty][tx]){visited[ty][tx]=newV;changed=true;}
+  }
+  if(changed) fogDirty=true;
+}
+
+function rebuildFog(){
+  if(!fogDirty) return;
+  fogDirty=false;
+  foCtx.clearRect(0,0,fogOff.width,fogOff.height);
+  foCtx.fillStyle='rgba(18,12,4,1)';
+  foCtx.fillRect(0,0,fogOff.width,fogOff.height);
+  foCtx.globalCompositeOperation='destination-out';
+  for(let ty=0;ty<WH;ty++) for(let tx=0;tx<WW;tx++){
+    const v=visited[ty][tx];
+    if(v<=0) continue;
+    const cx=(tx+0.5)*FOG_S, cy=(ty+0.5)*FOG_S, r=FOG_S*2.2;
+    const g=foCtx.createRadialGradient(cx,cy,0,cx,cy,r);
+    const a=v; // 1.0 = fully clear, 0.55 = half clear
+    g.addColorStop(0,`rgba(0,0,0,${a})`);
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    foCtx.fillStyle=g;
+    foCtx.fillRect(cx-r,cy-r,r*2,r*2);
+  }
+  foCtx.globalCompositeOperation='source-over';
+}
+
+function drawFog(){
+  rebuildFog();
+  fCtx.clearRect(0,0,W,H);
+  fCtx.imageSmoothingEnabled=true; fCtx.imageSmoothingQuality='high';
+  fCtx.drawImage(fogOff, camX/1*FOG_S, camY/1*FOG_S, (W/TILE)*FOG_S, (H/TILE)*FOG_S, 0,0,W,H);
+}
+
+// ══════════════════════════════════════════════════════════
+// CLICK ANIMATIONS
+// ══════════════════════════════════════════════════════════
+const clickRipples=[];  // {sx,sy,t}
+const discAnims=[];     // {tx,ty,t}
+
+function addRipple(sx,sy){ clickRipples.push({sx,sy,t:0}); }
+function addDiscAnim(tx,ty){ discAnims.push({tx,ty,t:0}); }
+
+// ══════════════════════════════════════════════════════════
+// RENDERING
+// ══════════════════════════════════════════════════════════
+const AREA_LABELS=[
+  {n:'CENTRAL SAVANNA',x:50,y:50},{n:'NORTHERN PLAINS',x:21,y:13},
+  {n:'EASTERN HIGHLANDS',x:79,y:23},{n:'THORNBUSH VALLEY',x:13,y:73},
+  {n:'SOUTHERN FLATS',x:73,y:77},{n:'THE GREAT LAKE',x:33,y:30,water:true},
+];
+
+function ts(tx,ty){ return {sx:(tx-camX)*TILE, sy:(ty-camY)*TILE}; }
+
+function drawTerrain(){
+  const x0=Math.max(0,Math.floor(camX)-1), y0=Math.max(0,Math.floor(camY)-1);
+  const x1=Math.min(WW-1,Math.ceil(camX+W/TILE)+1), y1=Math.min(WH-1,Math.ceil(camY+H/TILE)+1);
+  for(let ty=y0;ty<=y1;ty++) for(let tx=x0;tx<=x1;tx++){
+    const tile=world[ty][tx];
+    const sx=Math.floor((tx-camX)*TILE), sy=Math.floor((ty-camY)*TILE);
+    const ts2=Math.ceil(TILE)+1;
+    ctx.fillStyle=C[tile]; ctx.fillRect(sx,sy,ts2,ts2);
+    // PATH: draw as clean white road with subtle edge
+    if(tile===T.PTH){
+      ctx.fillStyle='rgba(255,255,255,0.6)'; ctx.fillRect(sx+1,sy+1,ts2-2,ts2-2);
+    }
+    // WATER: shimmer
+    if(tile===T.WAT||tile===T.DWA){
+      const ph=Date.now()/2800+tx*0.17+ty*0.13;
+      const w2=Math.sin(ph)*2.5;
+      ctx.fillStyle='rgba(255,255,255,0.09)';
+      ctx.fillRect(sx+5+w2,sy+TILE*0.28,TILE-10,2);
+      ctx.fillRect(sx+8,sy+TILE*0.62+w2,TILE-16,1.5);
+    }
+    // DENSE BUSH: tree canopy dots
+    if(tile===T.BUS&&TILE>30){
+      const seed=tx*1373+ty*7919;
+      const rx=((Math.sin(seed)*0.5+0.5)*0.6+0.2)*TILE;
+      const ry=((Math.sin(seed*1.7)*0.5+0.5)*0.6+0.2)*TILE;
+      ctx.fillStyle='rgba(50,100,20,0.2)';
+      ctx.beginPath(); ctx.arc(sx+rx,sy+ry,TILE*0.22,0,Math.PI*2); ctx.fill();
+    }
+  }
+}
+
+function drawAreaLabels(){
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  AREA_LABELS.forEach(l=>{
+    const {sx,sy}=ts(l.x,l.y);
+    if(sx<-300||sx>W+300||sy<-80||sy>H+80) return;
+    if(!visited[l.y]?.[l.x]) return;
+    ctx.font='500 11px Roboto, Arial, sans-serif';
+    ctx.fillStyle=l.water?'rgba(30,90,160,0.4)':'rgba(80,58,30,0.38)';
+    ctx.fillText(l.n,sx,sy);
+  });
+}
+
+function drawPin(sx,sy,emoji,color,scale=1){
+  const r=TILE*0.32*scale;
+  // Shadow
+  ctx.shadowColor='rgba(0,0,0,0.25)'; ctx.shadowBlur=8; ctx.shadowOffsetY=4;
+  // Pin body (circle)
+  ctx.fillStyle=color;
+  ctx.beginPath(); ctx.arc(sx,sy-r*0.4,r,0,Math.PI*2); ctx.fill();
+  // Pin point
+  ctx.beginPath(); ctx.moveTo(sx-r*0.6,sy-r*0.4); ctx.lineTo(sx,sy+r*0.8); ctx.lineTo(sx+r*0.6,sy-r*0.4); ctx.fill();
+  ctx.shadowBlur=0; ctx.shadowOffsetY=0;
+  // White inner
+  ctx.fillStyle='white';
+  ctx.beginPath(); ctx.arc(sx,sy-r*0.4,r*0.72,0,Math.PI*2); ctx.fill();
+  // Emoji
+  ctx.font=`${r*1.0}px serif`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(emoji,sx,sy-r*0.4-1);
+  // Label
+  if(TILE>=36&&scale===1){
+    ctx.font='500 11px Roboto,Arial,sans-serif';
+    ctx.textBaseline='top';
+    const lw=ctx.measureText(emoji==='?'?'???':null||ctx._label||'').width;
+    // handled separately
+  }
+}
+
+function drawPOI(){
+  const all=[...ANIMALS,...LMARKS];
+  all.forEach(p=>{
+    const v=visited[p.y]?.[p.x];
+    if(!v) return;
+    const {sx,sy}=ts(p.x+0.5,p.y+0.5);
+    if(sx<-80||sx>W+80||sy<-80||sy>H+80) return;
+    const color=p.disc?'#1a73e8':'#ea4335';
+    drawPin(sx,sy,p.e,color);
+    // Label
+    if(TILE>=36){
+      const label=p.name;
+      ctx.font='500 11px Roboto,Arial,sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='top';
+      const lw=ctx.measureText(label).width+12;
+      const ly=sy+TILE*0.55;
+      ctx.fillStyle='rgba(255,255,255,0.92)';
+      rrect(ctx,sx-lw/2,ly,lw,17,4); ctx.fill();
+      ctx.fillStyle='#3c4043'; ctx.fillText(label,sx,ly+2);
+    }
+  });
+}
+
+function drawPlayer(){
+  const sx=(pX-camX)*TILE, sy=(pY-camY)*TILE;
+  const t=Date.now()/1000;
+  const p=Math.sin(t*2.2)*0.35+0.65;
+  // Accuracy ring (animated)
+  ctx.beginPath(); ctx.arc(sx,sy,26*p,0,Math.PI*2);
+  ctx.fillStyle=`rgba(66,133,244,${0.12+p*0.08})`; ctx.fill();
+  // Outer white ring
+  ctx.beginPath(); ctx.arc(sx,sy,11,0,Math.PI*2);
+  ctx.fillStyle='white'; ctx.fill();
+  // Blue dot
+  ctx.beginPath(); ctx.arc(sx,sy,7.5,0,Math.PI*2);
+  ctx.fillStyle='#4285F4'; ctx.fill();
+  // Inner shine
+  ctx.beginPath(); ctx.arc(sx-2,sy-2,3,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,255,255,0.45)'; ctx.fill();
+}
+
+function drawTarget(){
+  if(tgtX===null) return;
+  const sx=(tgtX-camX)*TILE, sy=(tgtY-camY)*TILE;
+  const t=Date.now()/600;
+  const pulse=Math.sin(t)*0.3+0.7;
+  ctx.strokeStyle=`rgba(66,133,244,${0.5*pulse})`;
+  ctx.lineWidth=2; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.arc(sx,sy,10*pulse,0,Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawRipples(){
+  const now=Date.now();
+  for(let i=clickRipples.length-1;i>=0;i--){
+    const r=clickRipples[i];
+    r.t+=0.03;
+    if(r.t>1){clickRipples.splice(i,1);continue;}
+    const rad=r.t*60;
+    ctx.strokeStyle=`rgba(66,133,244,${(1-r.t)*0.6})`;
+    ctx.lineWidth=2; ctx.beginPath(); ctx.arc(r.sx,r.sy,rad,0,Math.PI*2); ctx.stroke();
+  }
+  for(let i=discAnims.length-1;i>=0;i--){
+    const d=discAnims[i]; d.t+=0.018;
+    if(d.t>1){discAnims.splice(i,1);continue;}
+    const {sx,sy}=ts(d.tx+0.5,d.ty+0.5);
+    const rad=d.t*TILE*4;
+    ctx.strokeStyle=`rgba(251,188,5,${(1-d.t)*0.8})`;
+    ctx.lineWidth=3; ctx.beginPath(); ctx.arc(sx,sy,rad,0,Math.PI*2); ctx.stroke();
+    ctx.strokeStyle=`rgba(234,67,53,${(1-d.t)*0.4})`;
+    ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(sx,sy,rad*0.6,0,Math.PI*2); ctx.stroke();
+  }
+}
+
+function rrect(c,x,y,w,h,r){
+  c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);
+  c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);c.lineTo(x+r,y+h);
+  c.quadraticCurveTo(x,y+h,x,y+h-r);c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath();
+}
+
+// ══════════════════════════════════════════════════════════
+// MINIMAP
+// ══════════════════════════════════════════════════════════
+function drawMinimap(){
+  const mw=140,mh=140, sx=mw/WW, sy=mh/WH;
+  const img=mCtx.createImageData(mw,mh);
+  for(let y=0;y<mh;y++) for(let x=0;x<mw;x++){
+    const tx=Math.floor(x/sx), ty=Math.floor(y/sy);
+    const tile=world[ty]?.[tx]??0, v=visited[ty]?.[tx]??0;
+    const i=(y*mw+x)*4;
+    const h=C[tile];
+    const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);
+    if(v>0){img.data[i]=r;img.data[i+1]=g;img.data[i+2]=b;img.data[i+3]=255;}
+    else{img.data[i]=18;img.data[i+1]=12;img.data[i+2]=4;img.data[i+3]=255;}
+  }
+  mCtx.putImageData(img,0,0);
+  // Viewport
+  const vx=camX*sx, vy=camY*sy, vw=(W/TILE)*sx, vh=(H/TILE)*sy;
+  mCtx.strokeStyle='rgba(66,133,244,0.8)'; mCtx.lineWidth=1.5;
+  mCtx.strokeRect(vx,vy,vw,vh);
+  // Player
+  mCtx.beginPath(); mCtx.arc(pX*sx,pY*sy,3,0,Math.PI*2);
+  mCtx.fillStyle='#4285F4'; mCtx.fill();
+  mCtx.beginPath(); mCtx.arc(pX*sx,pY*sy,3,0,Math.PI*2);
+  mCtx.strokeStyle='white'; mCtx.lineWidth=1.5; mCtx.stroke();
+}
+
+// ══════════════════════════════════════════════════════════
+// DISCOVERY & UI
+// ══════════════════════════════════════════════════════════
+let notifTimer=null;
+function checkDisc(){
+  [...ANIMALS,...LMARKS].forEach(p=>{
+    if(p.disc) return;
+    if(Math.sqrt((p.x-pX)**2+(p.y-pY)**2)<DISC_R){
+      p.disc=true; addDiscAnim(p.x,p.y);
+      showNotif(p); updatePanel();
+    }
+  });
+}
+function showNotif(p){
+  document.getElementById('notif-ico').textContent=p.e;
+  document.getElementById('notif-title').textContent=p.name+' Discovered!';
+  document.getElementById('notif-sub').textContent=p.type;
+  const n=document.getElementById('notif');
+  n.classList.add('show');
+  if(notifTimer) clearTimeout(notifTimer);
+  notifTimer=setTimeout(()=>n.classList.remove('show'),3500);
+}
+function updatePanel(){
+  const list=document.getElementById('animal-list');
+  list.innerHTML='';
+  ANIMALS.forEach(a=>{
+    const d=document.createElement('div');
+    d.className='a-row'+(a.disc?'':' dim');
+    d.innerHTML=`<div class="a-dot"></div><span>${a.e} ${a.disc?a.name:'???'}</span>`;
+    list.appendChild(d);
+  });
+  const f=ANIMALS.filter(a=>a.disc).length;
+  document.getElementById('disc-footer').textContent=`${f} / ${ANIMALS.length} species found`;
+}
+
+// Info card
+let cardOpen=false;
+function showCard(p){
+  document.getElementById('card-emoji').textContent=p.e;
+  document.getElementById('card-emoji-bg').style.background=p.disc?'#e8f0fe':'#fef3cd';
+  document.getElementById('card-name').textContent=p.name;
+  document.getElementById('card-type').textContent=p.type;
+  document.getElementById('card-desc').textContent=p.disc?p.desc:'Move closer to discover this species.';
+  const tags=document.getElementById('card-tags');
+  tags.innerHTML='';
+  if(p.disc){
+    tags.innerHTML=`<span class="card-tag green">✓ Discovered</span><span class="card-tag blue">📍 ${getAreaName()}</span>`;
+  } else {
+    tags.innerHTML=`<span class="card-tag">🔍 Undiscovered</span>`;
+  }
+  document.getElementById('info-card').classList.add('open');
+  cardOpen=true;
+  // Move player toward it
+  tgtX=p.x+0.5; tgtY=p.y+0.5;
+}
+function hideCard(){
+  document.getElementById('info-card').classList.remove('open');
+  cardOpen=false;
+}
+document.getElementById('card-close').addEventListener('click',e=>{e.stopPropagation();hideCard();});
+
+function getAreaName(){
+  const areas=[
+    {n:'Central Savanna',x:50,y:50,r:14},{n:'Northern Plains',x:21,y:13,r:14},
+    {n:'Eastern Highlands',x:79,y:23,r:14},{n:'Thornbush Valley',x:13,y:73,r:14},
+    {n:'Southern Flats',x:73,y:77,r:14},
+  ];
+  for(const a of areas) if(Math.sqrt((pX-a.x)**2+(pY-a.y)**2)<a.r) return a.n;
+  return 'The Savanna';
+}
+
+// ══════════════════════════════════════════════════════════
+// INPUT
+// ══════════════════════════════════════════════════════════
+mapC.addEventListener('click', e=>{
+  const worldX=camX+e.clientX/TILE, worldY=camY+e.clientY/TILE;
+  // Check POI hit
+  const all=[...ANIMALS,...LMARKS];
+  const hit=all.find(p=>{
+    const v=visited[p.y]?.[p.x];
+    if(!v) return false;
+    const {sx,sy}=ts(p.x+0.5,p.y+0.5);
+    return Math.sqrt((e.clientX-sx)**2+(e.clientY-sy)**2)<TILE*0.8;
+  });
+  if(hit){ showCard(hit); addRipple(e.clientX,e.clientY); return; }
+  if(cardOpen) hideCard();
+  // Move to click
+  const tile=world[Math.floor(worldY)]?.[Math.floor(worldX)];
+  if(tile===T.WAT||tile===T.DWA) return;
+  tgtX=worldX; tgtY=worldY;
+  addRipple(e.clientX,e.clientY);
+});
+
+mapC.addEventListener('wheel', e=>{
+  e.preventDefault();
+  const oldTile=TILE;
+  TILE=Math.max(24,Math.min(96, TILE*(e.deltaY<0?1.12:0.89)));
+  // Zoom toward mouse
+  const mx=e.clientX, my=e.clientY;
+  camX=(camX+mx/oldTile)*TILE/TILE - mx/TILE; // simplified: keep world center
+  camX=pX-W/(2*TILE); camY=pY-H/(2*TILE); // just re-center on player
+},{passive:false});
+
+document.getElementById('zoom-in').addEventListener('click',()=>{ TILE=Math.min(TILE*1.2,96); });
+document.getElementById('zoom-out').addEventListener('click',()=>{ TILE=Math.max(TILE*0.83,24); });
+
+// ══════════════════════════════════════════════════════════
+// UPDATE
+// ══════════════════════════════════════════════════════════
+function update(){
+  // Keyboard
+  let kdx=0,kdy=0;
+  if(keys['ArrowLeft']||keys['a']||keys['A']) kdx-=1;
+  if(keys['ArrowRight']||keys['d']||keys['D']) kdx+=1;
+  if(keys['ArrowUp']||keys['w']||keys['W']) kdy-=1;
+  if(keys['ArrowDown']||keys['s']||keys['S']) kdy+=1;
+  if(kdx||kdy){
+    if(kdx&&kdy){kdx*=0.707;kdy*=0.707;}
+    tgtX=pX+kdx*12; tgtY=pY+kdy*12;
+  }
+  // Move toward target
+  if(tgtX!==null){
+    const dx=tgtX-pX, dy=tgtY-pY, d=Math.sqrt(dx*dx+dy*dy);
+    if(d<0.08){ tgtX=tgtY=null; }
+    else{
+      const spd=Math.min(d,SPEED);
+      const nx=pX+dx/d*spd, ny=pY+dy/d*spd;
+      const t=world[Math.floor(ny)]?.[Math.floor(nx)];
+      if(t!==T.WAT&&t!==T.DWA){
+        pX=Math.max(0.5,Math.min(nx,WW-0.5));
+        pY=Math.max(0.5,Math.min(ny,WH-0.5));
+      } else { tgtX=tgtY=null; }
+    }
+  }
+  // Camera
+  const tCX=pX-W/(2*TILE), tCY=pY-H/(2*TILE);
+  camX+=(tCX-camX)*0.08; camY+=(tCY-camY)*0.08;
+  camX=Math.max(0,Math.min(camX,WW-W/TILE));
+  camY=Math.max(0,Math.min(camY,WH-H/TILE));
+  updateVis(); checkDisc();
+}
+
+// ══════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════
+function render(){
+  ctx.clearRect(0,0,W,H);
+  drawTerrain();
+  drawAreaLabels();
+  drawPOI();
+  drawTarget();
+  drawRipples();
+  drawPlayer();
+  drawFog();
+  drawMinimap();
+}
+
+// ══════════════════════════════════════════════════════════
+// LOOP & INIT
+// ══════════════════════════════════════════════════════════
+function loop(){ update(); render(); requestAnimationFrame(loop); }
+
+genWorld();
+placeEntities();
+updatePanel();
+// Pre-reveal start area
+for(let dy=-4;dy<=4;dy++) for(let dx=-4;dx<=4;dx++){
+  const tx=50+dx,ty=50+dy;
+  if(tx>=0&&tx<WW&&ty>=0&&ty<WH) visited[ty][tx]=Math.max(visited[ty][tx],1-(Math.sqrt(dx*dx+dy*dy)/4.5)*0.5);
+}
+fogDirty=true;
+loop();
+</script>
+</body>
+</html>

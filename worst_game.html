@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>BEST GAME EVER (you'll love it)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      background: #00ff00;
+      font-family: Comic Sans MS, cursive;
+      margin: 0;
+      overflow: hidden;
+      transition: background 0.1s;
+    }
+    #game {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      gap: 10px;
+    }
+    h1 {
+      font-size: 48px;
+      color: #ff00ff;
+      text-shadow: 3px 3px #ff0000, -3px -3px #0000ff;
+      animation: spin 2s linear infinite;
+      margin: 0;
+    }
+    @keyframes spin {
+      0% { transform: rotate(-3deg) scale(1); }
+      25% { transform: rotate(3deg) scale(1.05); }
+      50% { transform: rotate(-3deg) scale(1); }
+      75% { transform: rotate(3deg) scale(0.95); }
+    }
+    #canvas-wrap {
+      position: relative;
+    }
+    canvas {
+      border: 8px dashed #ff00ff;
+      background: #000033;
+      display: block;
+      cursor: none;
+    }
+    #hud {
+      display: flex;
+      gap: 40px;
+      font-size: 22px;
+      font-weight: bold;
+      color: #ffff00;
+      text-shadow: 2px 2px #ff0000;
+    }
+    #instructions {
+      font-size: 16px;
+      color: #ffffff;
+      background: #ff0000;
+      padding: 8px 16px;
+      border-radius: 8px;
+      text-align: center;
+      max-width: 560px;
+    }
+    #message {
+      font-size: 24px;
+      color: #ff0000;
+      background: #ffff00;
+      padding: 6px 20px;
+      border-radius: 12px;
+      min-height: 40px;
+      font-weight: bold;
+      text-align: center;
+      max-width: 560px;
+    }
+    #overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      z-index: 100;
+    }
+    #overlay h2 { color: #ff0000; font-size: 48px; margin: 0; font-family: Comic Sans MS; }
+    #overlay p { color: #ffffff; font-size: 20px; font-family: Comic Sans MS; text-align: center; max-width: 500px; }
+    #startBtn {
+      font-size: 28px;
+      font-family: Comic Sans MS;
+      background: #00ff00;
+      border: 4px solid #ff00ff;
+      padding: 12px 36px;
+      cursor: pointer;
+      border-radius: 8px;
+      color: #000000;
+      font-weight: bold;
+    }
+    #startBtn:hover { background: #ff0000; color: #ffffff; }
+    #loading {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #000000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      color: #00ff00;
+      font-family: Comic Sans MS;
+      font-size: 32px;
+      gap: 20px;
+    }
+    #loadbar-wrap {
+      width: 400px;
+      height: 30px;
+      border: 3px solid #00ff00;
+    }
+    #loadbar {
+      height: 100%;
+      background: #00ff00;
+      width: 0%;
+      transition: width 0.05s;
+    }
+    #loadmsg { font-size: 18px; color: #ffff00; }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div>LOADING BEST GAME EVER...</div>
+  <div id="loadbar-wrap"><div id="loadbar"></div></div>
+  <div id="loadmsg">Preparing amazing graphics...</div>
+</div>
+
+<div id="overlay" style="display:none">
+  <h2>BEST GAME EVER</h2>
+  <p>
+    Use <b>WASD</b> to move. Collect the <span style="color:#ffff00">yellow stars</span>.<br>
+    Avoid the <span style="color:#ff4444">red enemies</span>.<br>
+    Reach <b>10 points</b> to win!<br><br>
+    <i style="color:#aaa">(This is very easy and fun. You will definitely win.)</i>
+  </p>
+  <button id="startBtn" onclick="startGame()">PLAY (click here) →</button>
+</div>
+
+<div id="game">
+  <h1>BEST GAME EVER</h1>
+  <div id="hud">
+    <span>SCORE: <span id="score">0</span></span>
+    <span>LIVES: <span id="lives">❤️❤️❤️</span></span>
+    <span>TIME: <span id="timer">99</span></span>
+  </div>
+  <div id="message">Welcome! You look great today!</div>
+  <div id="instructions">Controls: W=up, A=left, S=down, D=right (totally accurate)</div>
+  <div id="canvas-wrap">
+    <canvas id="canvas" width="560" height="360"></canvas>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// --- Loading screen fake ---
+const loadMsgs = [
+  "Preparing amazing graphics...",
+  "Loading sounds (100MB)...",
+  "Almost done...",
+  "Still loading...",
+  "Nearly there...",
+  "Loading...",
+  "Still going...",
+  "Wow this is a big game...",
+  "Almost...",
+  "LOL jk it's 2KB",
+];
+let loadPct = 0;
+let loadMsgIdx = 0;
+const loadBar = document.getElementById('loadbar');
+const loadMsgEl = document.getElementById('loadmsg');
+function fakeLoad() {
+  loadPct += Math.random() * 3 + 0.5;
+  if (loadPct > 100) loadPct = 100;
+  loadBar.style.width = loadPct + '%';
+  loadMsgEl.textContent = loadMsgs[Math.floor(loadPct / 10)] || loadMsgs[loadMsgs.length-1];
+  if (loadPct < 100) {
+    setTimeout(fakeLoad, 60 + Math.random() * 80);
+  } else {
+    setTimeout(() => {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('overlay').style.display = 'flex';
+    }, 800);
+  }
+}
+fakeLoad();
+
+// --- Game state ---
+let score = 0, lives = 3, timeLeft = 99;
+let gameRunning = false;
+let player = { x: 280, y: 180, w: 24, h: 24, vx: 0, vy: 0 };
+let stars = [];
+let enemies = [];
+let keys = {};
+let tick = 0;
+let controlFlip = false;
+let controlFlipTimer = 0;
+let bgColors = ['#00ff00','#ff6600','#00ffff','#ff00ff','#ffff00'];
+let bgIdx = 0;
+let msgTimer = 0;
+let messages = [
+  "You're doing amazing!",
+  "Incredible skills!",
+  "Almost got one!",
+  "WOW so close!!",
+  "You're a natural!",
+  "Don't give up champ!",
+  "The star was RIGHT THERE",
+  "lol",
+  "Have you tried using your hands?",
+  "This is your fault not the game's",
+  "Skills issue",
+  "My grandma plays better",
+  "Impressive... NOT",
+];
+let msgIdx = 0;
+
+function showMsg(m) {
+  document.getElementById('message').textContent = m;
+  msgTimer = 120;
+}
+
+function spawnStar() {
+  stars.push({
+    x: 40 + Math.random() * 480,
+    y: 40 + Math.random() * 280,
+    r: 14,
+    wobble: Math.random() * Math.PI * 2,
+    // Stars slowly drift AWAY from the player (because why not)
+  });
+}
+
+function spawnEnemy() {
+  enemies.push({
+    x: Math.random() < 0.5 ? -20 : 580,
+    y: 30 + Math.random() * 300,
+    w: 28, h: 28,
+    speed: 1.2 + Math.random() * 1.5,
+    phase: Math.random() * Math.PI * 2,
+    smart: Math.random() < 0.4,
+  });
+}
+
+function startGame() {
+  document.getElementById('overlay').style.display = 'none';
+  score = 0; lives = 3; timeLeft = 99;
+  stars = []; enemies = [];
+  player = { x: 280, y: 180, w: 24, h: 24, vx: 0, vy: 0 };
+  controlFlip = false; controlFlipTimer = 0;
+  tick = 0;
+  gameRunning = true;
+  for (let i = 0; i < 3; i++) spawnStar();
+  for (let i = 0; i < 2; i++) spawnEnemy();
+  requestAnimationFrame(loop);
+  // Timer countdown
+  let timerInterval = setInterval(() => {
+    if (!gameRunning) { clearInterval(timerInterval); return; }
+    timeLeft--;
+    document.getElementById('timer').textContent = timeLeft;
+    if (timeLeft <= 0) { endGame("TIME'S UP! You lose. Of course."); clearInterval(timerInterval); }
+  }, 1000);
+}
+
+function getMove() {
+  // Randomly flip controls every ~5-8 seconds
+  controlFlipTimer--;
+  if (controlFlipTimer <= 0) {
+    if (Math.random() < 0.35) {
+      controlFlip = !controlFlip;
+      if (controlFlip) {
+        showMsg("CONTROLS FLIPPED! (for your convenience)");
+        document.getElementById('instructions').textContent = "Controls: W=down, A=right, S=up, D=left (updated!)";
+      } else {
+        showMsg("Controls back to normal! (maybe)");
+        document.getElementById('instructions').textContent = "Controls: W=up, A=left, S=down, D=right (probably)";
+      }
+    }
+    controlFlipTimer = 300 + Math.floor(Math.random() * 200);
+  }
+
+  let dx = 0, dy = 0;
+  if (keys['w'] || keys['W'] || keys['ArrowUp'])    dy = controlFlip ? 1 : -1;
+  if (keys['s'] || keys['S'] || keys['ArrowDown'])  dy = controlFlip ? -1 : 1;
+  if (keys['a'] || keys['A'] || keys['ArrowLeft'])  dx = controlFlip ? 1 : -1;
+  if (keys['d'] || keys['D'] || keys['ArrowRight']) dx = controlFlip ? -1 : 1;
+
+  // Occasionally ignore input entirely
+  if (Math.random() < 0.02) { dx = 0; dy = 0; }
+
+  return { dx, dy };
+}
+
+function loop() {
+  if (!gameRunning) return;
+  tick++;
+
+  // Change background color every 4 seconds (epilepsy mode lite)
+  if (tick % 240 === 0) {
+    bgIdx = (bgIdx + 1) % bgColors.length;
+    document.body.style.background = bgColors[bgIdx];
+  }
+
+  const { dx, dy } = getMove();
+  const speed = 3;
+  player.vx = dx * speed;
+  player.vy = dy * speed;
+
+  // Random "lag spike" - freeze player occasionally
+  if (Math.random() < 0.008) {
+    player.vx = 0; player.vy = 0;
+    showMsg("LAG SPIKE! Not our problem.");
+  }
+
+  player.x += player.vx;
+  player.y += player.vy;
+
+  // Walls — but they teleport you to a random spot instead of stopping you
+  if (player.x < 0) { player.x = Math.random() * 400 + 80; player.y = Math.random() * 280 + 40; showMsg("You fell off the edge! Respawned randomly."); }
+  if (player.x > 560) { player.x = Math.random() * 400 + 80; player.y = Math.random() * 280 + 40; showMsg("You fell off the edge! Respawned randomly."); }
+  if (player.y < 0) { player.x = Math.random() * 400 + 80; player.y = Math.random() * 280 + 40; showMsg("You fell off the edge! Respawned randomly."); }
+  if (player.y > 360) { player.x = Math.random() * 400 + 80; player.y = Math.random() * 280 + 40; showMsg("You fell off the edge! Respawned randomly."); }
+
+  // Stars drift away from player
+  for (let s of stars) {
+    s.wobble += 0.03;
+    let ax = s.x - player.x, ay = s.y - player.y;
+    let dist = Math.sqrt(ax*ax + ay*ay) || 1;
+    if (dist < 200) {
+      s.x += (ax / dist) * 1.5;
+      s.y += (ay / dist) * 1.5;
+    }
+    // Bounce off walls
+    if (s.x < 10) s.x = 10;
+    if (s.x > 550) s.x = 550;
+    if (s.y < 10) s.y = 10;
+    if (s.y > 350) s.y = 350;
+  }
+
+  // Star collision (shrink hitbox to make it nearly impossible)
+  stars = stars.filter(s => {
+    let cx = player.x + player.w/2, cy = player.y + player.h/2;
+    let dist = Math.sqrt((s.x - cx)**2 + (s.y - cy)**2);
+    if (dist < 6) { // very tiny hit window
+      score++;
+      document.getElementById('score').textContent = score;
+      showMsg(["YES! +1", "Got one!", "Lucky.", "The game is being generous.", "Finally."][Math.floor(Math.random()*5)]);
+      if (score >= 10) { endGame("YOU WIN! (impossible, yet here we are)"); }
+      spawnStar();
+      return false;
+    }
+    return true;
+  });
+  if (stars.length < 3) spawnStar();
+
+  // Enemies
+  for (let e of enemies) {
+    e.phase += 0.04;
+    if (e.smart) {
+      // Actively chase player
+      let ax = player.x - e.x, ay = player.y - e.y;
+      let dist = Math.sqrt(ax*ax + ay*ay) || 1;
+      e.x += (ax/dist) * e.speed * 1.2;
+      e.y += (ay/dist) * e.speed * 1.2;
+    } else {
+      e.x += e.speed * (e.x < 280 ? 1 : -1) * 0.5 + Math.sin(e.phase) * 2;
+      e.y += Math.cos(e.phase * 0.7) * 2;
+    }
+    // Enemy collision — generous hitbox for enemies (unfair)
+    if (
+      player.x < e.x + e.w + 10 &&
+      player.x + player.w > e.x - 10 &&
+      player.y < e.y + e.h + 10 &&
+      player.y + player.h > e.y - 10
+    ) {
+      lives--;
+      updateLives();
+      showMsg(["Skill issue.", "You walked into that.", "The enemy was RIGHT THERE.", "That's embarrassing.", "Oof."][Math.floor(Math.random()*5)]);
+      player.x = 280; player.y = 180; // respawn center
+      if (lives <= 0) { endGame("GAME OVER. You died. Again."); }
+    }
+  }
+
+  // Occasionally spawn more enemies
+  if (tick % 400 === 0) spawnEnemy();
+
+  // Random insult ticker
+  if (msgTimer > 0) {
+    msgTimer--;
+  } else if (tick % 180 === 0) {
+    showMsg(messages[msgIdx % messages.length]);
+    msgIdx++;
+  }
+
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function updateLives() {
+  const arr = ['', '❤️', '❤️❤️', '❤️❤️❤️'];
+  document.getElementById('lives').textContent = arr[Math.max(0, lives)] || '💀';
+  document.getElementById('score').textContent = score;
+}
+
+function drawStar(x, y, r, color) {
+  ctx.save();
+  ctx.beginPath();
+  for (let i = 0; i < 5; i++) {
+    let angle = (i * 4 * Math.PI / 5) - Math.PI / 2;
+    let ox = x + Math.cos(angle) * r;
+    let oy = y + Math.sin(angle) * r;
+    i === 0 ? ctx.moveTo(ox, oy) : ctx.lineTo(ox, oy);
+  }
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.restore();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, 560, 360);
+
+  // Background
+  ctx.fillStyle = '#000033';
+  ctx.fillRect(0, 0, 560, 360);
+
+  // Grid (it does nothing)
+  ctx.strokeStyle = 'rgba(0,100,255,0.1)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < 560; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,360); ctx.stroke(); }
+  for (let y = 0; y < 360; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(560,y); ctx.stroke(); }
+
+  // Stars (drawn slightly OFFSET from actual hitbox to mislead player)
+  for (let s of stars) {
+    drawStar(s.x + 15, s.y + 15, s.r, '#ffff00'); // visual is offset from actual position
+    // actual hitbox is at s.x, s.y — 15px off from what you see
+  }
+
+  // Enemies
+  for (let e of enemies) {
+    ctx.fillStyle = '#ff2222';
+    ctx.fillRect(e.x, e.y, e.w, e.h);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '18px Arial';
+    ctx.fillText('👿', e.x + 3, e.y + 22);
+  }
+
+  // Player
+  ctx.fillStyle = '#00aaff';
+  ctx.fillRect(player.x, player.y, player.w, player.h);
+  ctx.font = '20px Arial';
+  ctx.fillText('🤡', player.x + 1, player.y + 22);
+
+  // Fake "hitbox" indicator (wrong size, misleads player)
+  ctx.strokeStyle = 'rgba(0,255,0,0.3)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(player.x - 15, player.y - 15, player.w + 30, player.h + 30);
+}
+
+function endGame(msg) {
+  gameRunning = false;
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, 560, 360);
+  ctx.fillStyle = '#ff0000';
+  ctx.font = 'bold 36px Comic Sans MS';
+  ctx.textAlign = 'center';
+  ctx.fillText(msg.split('(')[0], 280, 150);
+  if (msg.includes('(')) {
+    ctx.fillStyle = '#ffff00';
+    ctx.font = '22px Comic Sans MS';
+    ctx.fillText('(' + msg.split('(')[1], 280, 190);
+  }
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '20px Comic Sans MS';
+  ctx.fillText('Final Score: ' + score + ' / 10', 280, 240);
+  ctx.fillText('Refresh to try again. (please don\'t)', 280, 280);
+  document.getElementById('message').textContent = score < 3 ? "Maybe try a different hobby." : score < 7 ? "Not bad. Still pretty bad though." : "Almost! The game respects you. Slightly.";
+}
+
+document.addEventListener('keydown', e => { keys[e.key] = true; e.preventDefault(); });
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// Fake "click here" button that moves away
+const btn = document.getElementById('startBtn');
+btn.addEventListener('mouseover', () => {
+  if (Math.random() < 0.5) {
+    btn.style.transform = `translate(${(Math.random()-0.5)*80}px, ${(Math.random()-0.5)*40}px)`;
+  }
+});
+</script>
+</body>
+</html>

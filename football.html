@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Football</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0d1b2a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: 'Arial Black', Arial, sans-serif;
+  color: #fff;
+  user-select: none;
+}
+#hud {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 10px 28px;
+  background: #111f2e;
+  border: 2px solid #ffd700;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.stat { text-align: center; min-width: 60px; }
+.stat-label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+.stat-value { font-size: 22px; font-weight: 900; color: #ffd700; line-height: 1.1; }
+.divider { width: 1px; height: 40px; background: #333; }
+canvas { display: block; cursor: crosshair; }
+#msg {
+  margin-top: 8px;
+  height: 20px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #ffd700;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+#controls {
+  margin-top: 5px;
+  font-size: 11px;
+  color: #555;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div class="stat">
+    <div class="stat-label">Score</div>
+    <div class="stat-value" id="h-score">0</div>
+  </div>
+  <div class="divider"></div>
+  <div class="stat">
+    <div class="stat-label">Down</div>
+    <div class="stat-value" id="h-down">1st</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">To Go</div>
+    <div class="stat-value" id="h-togo">10</div>
+  </div>
+  <div class="divider"></div>
+  <div class="stat">
+    <div class="stat-label">Field</div>
+    <div class="stat-value" id="h-field">Own 20</div>
+  </div>
+  <div class="divider"></div>
+  <div class="stat">
+    <div class="stat-label">Plays</div>
+    <div class="stat-value" id="h-plays">0</div>
+  </div>
+</div>
+
+<canvas id="c" width="900" height="480"></canvas>
+<div id="msg">Press SPACE to snap the ball!</div>
+<div id="controls">WASD / Arrow Keys: Move &nbsp;|&nbsp; SPACE: Snap &nbsp;|&nbsp; CLICK: Throw pass &nbsp;|&nbsp; After catch: keep running!</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 900, H = 480;
+
+// Field math
+const EZ = 70;          // end zone width px
+const FW = W - 2 * EZ; // playable field width px
+const YPX = FW / 100;  // pixels per yard
+
+function yx(yard) { return EZ + yard * YPX; }
+function xy(px)   { return (px - EZ) / YPX; }
+
+// ── State ──────────────────────────────────────────────────────────────────
+let state = 'preSnap'; // preSnap | live | passing | dead | touchdown | gameOver
+let score = 0, plays = 0;
+let down = 1, toGo = 10, ballYard = 20, firstDownYard = 30;
+
+// ── Input ──────────────────────────────────────────────────────────────────
+const keys = {};
+const mouse = { x: W/2, y: H/2 };
+document.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'Space') { e.preventDefault(); onSpace(); }
+});
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  mouse.x = e.clientX - r.left;
+  mouse.y = e.clientY - r.top;
+});
+canvas.addEventListener('click', e => {
+  const r = canvas.getBoundingClientRect();
+  mouse.x = e.clientX - r.left;
+  mouse.y = e.clientY - r.top;
+  onClick();
+});
+
+function onSpace() {
+  if (state === 'preSnap') startPlay();
+  else if (state === 'dead' || state === 'touchdown') nextPlay();
+  else if (state === 'gameOver') resetGame();
+}
+function onClick() {
+  if (state === 'live' && carrier === qb && !qb.tackled) throwPass(mouse.x, mouse.y);
+  else if (state === 'dead' || state === 'touchdown') nextPlay();
+  else if (state === 'gameOver') resetGame();
+}
+
+// ── Entities ───────────────────────────────────────────────────────────────
+class Entity {
+  constructor(x, y, color, r) {
+    this.x = x; this.y = y;
+    this.color = color; this.r = r;
+    this.vx = 0; this.vy = 0;
+    this.tackled = false;
+    this.hasBall = false;
+  }
+  move(dt) {
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.x = Math.max(this.r, Math.min(W - this.r, this.x));
+    this.y = Math.max(this.r + 18, Math.min(H - this.r - 18, this.y));
+  }
+  draw(label) {
+    ctx.save();
+    // drop shadow
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 6; ctx.shadowOffsetY = 3;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    ctx.fillStyle = this.tackled ? '#888' : this.color;
+    ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+
+    if (this.hasBall) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(this.x, this.y, 7, 4, 0.4, 0, Math.PI * 2);
+      ctx.fillStyle = '#8B4513';
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (label) {
+      ctx.font = 'bold 10px Arial';
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, this.x, this.y + this.r + 13);
+    }
+  }
+  dist(other) {
+    return Math.hypot(this.x - other.x, this.y - other.y);
+  }
+}
+
+// ── Game objects ───────────────────────────────────────────────────────────
+let qb, wrs, defs, ball, carrier;
+
+function buildPlay() {
+  const lx = yx(ballYard);
+
+  qb = new Entity(lx, H / 2, '#3a7bd5', 15);
+  qb.hasBall = true;
+  qb.speed = 185;
+
+  wrs = [
+    new Entity(lx, H / 2 - 80, '#5bc8f5', 12),
+    new Entity(lx, H / 2 + 80, '#5bc8f5', 12),
+    new Entity(lx - 20, H / 2 - 130, '#5bc8f5', 12),
+  ];
+
+  // route targets per WR (run forward + break)
+  const wr0routes = [
+    { x: yx(ballYard + 8), y: H/2 - 60 },
+    { x: yx(ballYard + 18), y: H/2 - 90 },
+  ];
+  const wr1routes = [
+    { x: yx(ballYard + 8), y: H/2 + 60 },
+    { x: yx(ballYard + 18), y: H/2 + 90 },
+  ];
+  const wr2routes = [
+    { x: yx(ballYard + 25), y: H/2 - 130 },
+    { x: yx(ballYard + 45), y: H/2 - 120 },
+  ];
+  wrs[0].routes = wr0routes; wrs[0].ri = 0;
+  wrs[1].routes = wr1routes; wrs[1].ri = 0;
+  wrs[2].routes = wr2routes; wrs[2].ri = 0;
+
+  const spread = 60;
+  defs = [
+    new Entity(lx + 15,  H/2,           '#e03030', 13),
+    new Entity(lx + 40,  H/2 - spread,  '#e03030', 13),
+    new Entity(lx + 40,  H/2 + spread,  '#e03030', 13),
+    new Entity(lx + 110, H/2,           '#c02020', 13),
+    new Entity(lx + 90,  H/2 - spread*1.5, '#c02020', 12),
+  ];
+  defs[0].speed = 145;
+  defs[1].speed = 140;
+  defs[2].speed = 140;
+  defs[3].speed = 130;
+  defs[4].speed = 135;
+
+  ball = null;
+  carrier = qb;
+}
+
+// ── Play flow ──────────────────────────────────────────────────────────────
+function startPlay() {
+  plays++;
+  state = 'live';
+  setMsg('Run or click to throw!');
+}
+
+function throwPass(tx, ty) {
+  if (tx <= qb.x) { setMsg("Throw forward!"); return; }
+  qb.hasBall = false;
+  carrier = null;
+  const spd = 480;
+  const dx = tx - qb.x, dy = ty - qb.y;
+  const d = Math.hypot(dx, dy);
+  ball = { x: qb.x, y: qb.y, vx: dx/d*spd, vy: dy/d*spd, tx, ty };
+  state = 'passing';
+  setMsg('Pass in the air!');
+}
+
+function tackle() {
+  if (carrier) carrier.tackled = true;
+  carrier = null;
+  state = 'dead';
+
+  const gained = Math.max(-99, Math.round(xy(carrier_x_at_tackle) - ballYard));
+  ballYard = Math.max(0, Math.round(xy(carrier_x_at_tackle)));
+  ballYard = Math.min(100, ballYard);
+  finishDown(gained, false);
+}
+
+let carrier_x_at_tackle = 0;
+
+function finishDown(gained, incomplete) {
+  state = 'dead';
+  if (!incomplete) ballYard = Math.min(100, Math.max(0, ballYard));
+
+  // Check touchdown
+  if (!incomplete && ballYard >= 100) {
+    score += 7;
+    state = 'touchdown';
+    updateHUD();
+    setMsg('TOUCHDOWN!  +7 pts  |  SPACE or click to continue');
+    ballYard = 20; firstDownYard = 30; down = 1; toGo = 10;
+    return;
+  }
+
+  if (incomplete) {
+    setMsg(`Incomplete pass! — ${downStr(down)} & ${toGo}`);
+  } else {
+    const gainStr = gained > 0 ? `+${gained} yds` : gained === 0 ? 'no gain' : `${gained} yds`;
+    setMsg(`Tackled! ${gainStr}`);
+  }
+
+  if (!incomplete && ballYard >= firstDownYard) {
+    // First down
+    down = 1;
+    toGo = 10;
+    firstDownYard = Math.min(100, ballYard + 10);
+    setMsg(`FIRST DOWN! ${gained > 0 ? '+' + gained : gained} yds — press SPACE`);
+  } else {
+    if (!incomplete) toGo = firstDownYard - ballYard;
+    down++;
+    if (down > 4) {
+      setMsg('TURNOVER ON DOWNS — resetting. SPACE to continue');
+      ballYard = 20; firstDownYard = 30; down = 1; toGo = 10;
+    }
+  }
+  updateHUD();
+}
+
+function nextPlay() {
+  buildPlay();
+  state = 'preSnap';
+  setMsg('Press SPACE to snap!');
+  updateHUD();
+}
+
+function resetGame() {
+  score = 0; plays = 0; down = 1; toGo = 10;
+  ballYard = 20; firstDownYard = 30;
+  nextPlay();
+}
+
+// ── Update ─────────────────────────────────────────────────────────────────
+const SPEED_QB = 185;
+const SPEED_WR = 155;
+const SPEED_CARRIER = 175;
+
+function update(dt) {
+  if (state === 'live') {
+    updateCarrierInput(dt);
+    updateReceivers(dt);
+    updateDefenders(dt);
+    checkTackle();
+    checkTouchdown();
+  } else if (state === 'passing') {
+    updateQBMovement(dt);  // QB can scramble while ball is in air
+    updateReceivers(dt);
+    updateDefenders(dt);
+    updateBall(dt);
+  }
+}
+
+function dir() {
+  let vx = 0, vy = 0;
+  if (keys['ArrowLeft']  || keys['KeyA']) vx -= 1;
+  if (keys['ArrowRight'] || keys['KeyD']) vx += 1;
+  if (keys['ArrowUp']    || keys['KeyW']) vy -= 1;
+  if (keys['ArrowDown']  || keys['KeyS']) vy += 1;
+  const len = Math.hypot(vx, vy);
+  return len > 0 ? { vx: vx/len, vy: vy/len } : { vx: 0, vy: 0 };
+}
+
+function updateCarrierInput(dt) {
+  // Only directly drive the QB here; WR with ball is driven in updateReceivers
+  if (!carrier || carrier.tackled || carrier !== qb) return;
+  const d = dir();
+  carrier.vx = d.vx * SPEED_CARRIER;
+  carrier.vy = d.vy * SPEED_CARRIER;
+  carrier.move(dt);
+  carrier.x = Math.max(yx(ballYard) - 15, carrier.x);
+}
+
+function updateQBMovement(dt) {
+  // Let QB scramble slightly (no ball)
+  const d = dir();
+  qb.vx = d.vx * SPEED_QB * 0.8;
+  qb.vy = d.vy * SPEED_QB * 0.8;
+  qb.move(dt);
+}
+
+function updateReceivers(dt) {
+  wrs.forEach(wr => {
+    if (wr.tackled) return;
+    if (wr.hasBall) {
+      // Player controls the receiver
+      const d = dir();
+      wr.vx = d.vx * SPEED_CARRIER;
+      wr.vy = d.vy * SPEED_CARRIER;
+      wr.move(dt);
+      return;
+    }
+    // Run route
+    if (!wr.routes || wr.ri >= wr.routes.length) { wr.vx = 0; wr.vy = 0; return; }
+    const tgt = wr.routes[wr.ri];
+    const dx = tgt.x - wr.x, dy = tgt.y - wr.y;
+    const d = Math.hypot(dx, dy);
+    if (d < 6) { wr.ri++; return; }
+    wr.vx = dx/d * SPEED_WR;
+    wr.vy = dy/d * SPEED_WR;
+    wr.move(dt);
+  });
+}
+
+function updateDefenders(dt) {
+  const tgt = carrier || (ball ? ball : null);
+  if (!tgt) return;
+
+  defs.forEach((def, i) => {
+    const tx = tgt === ball ? ball.x : tgt.x;
+    const ty = tgt === ball ? ball.y : tgt.y;
+    const dx = tx - def.x, dy = ty - def.y;
+    const d = Math.hypot(dx, dy);
+    if (d > 0) {
+      def.vx = dx/d * def.speed;
+      def.vy = dy/d * def.speed;
+    }
+    def.move(dt);
+  });
+}
+
+function updateBall(dt) {
+  if (!ball) return;
+  ball.x += ball.vx * dt;
+  ball.y += ball.vy * dt;
+
+  // Check caught by receiver
+  for (const wr of wrs) {
+    if (!wr.tackled && Math.hypot(ball.x - wr.x, ball.y - wr.y) < 35) {
+      wr.hasBall = true;
+      carrier = wr;
+      ball = null;
+      state = 'live';
+      setMsg('Caught! RUN!');
+      return;
+    }
+  }
+
+  // Out of bounds / too far past target
+  if (ball.x > W + 30 || ball.x < 0 || ball.y < 0 || ball.y > H) {
+    ball = null; carrier = null;
+    finishDown(0, true);
+    return;
+  }
+
+  // Reached target without catch
+  if (Math.hypot(ball.x - ball.tx, ball.y - ball.ty) < 12) {
+    ball = null; carrier = null;
+    finishDown(0, true);
+  }
+}
+
+function checkTackle() {
+  if (!carrier || carrier.tackled) return;
+  for (const def of defs) {
+    if (Math.hypot(def.x - carrier.x, def.y - carrier.y) < def.r + carrier.r) {
+      carrier_x_at_tackle = carrier.x;
+      const gained = Math.round(xy(carrier.x)) - ballYard;
+      ballYard = Math.max(0, Math.min(100, Math.round(xy(carrier.x))));
+      carrier.tackled = true;
+      carrier.vx = 0; carrier.vy = 0;
+      finishDown(gained, false);
+      return;
+    }
+  }
+}
+
+function checkTouchdown() {
+  if (!carrier || carrier.tackled) return;
+  if (carrier.x >= W - EZ) {
+    carrier_x_at_tackle = W;
+    ballYard = 100;
+    finishDown(0, false);
+  }
+}
+
+// ── Draw ───────────────────────────────────────────────────────────────────
+function drawField() {
+  // Base grass
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#2a7a2a');
+  grad.addColorStop(1, '#1e601e');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Alternating 10-yard bands
+  for (let y = 0; y < 100; y += 10) {
+    if ((y / 10) % 2 === 0) {
+      ctx.fillStyle = 'rgba(0,0,0,0.07)';
+      ctx.fillRect(yx(y), 0, 10 * YPX, H);
+    }
+  }
+
+  // End zones
+  ctx.fillStyle = '#1a4f8a';
+  ctx.fillRect(0, 0, EZ, H);
+  ctx.fillStyle = '#8a1a1a';
+  ctx.fillRect(W - EZ, 0, EZ, H);
+
+  // End zone labels
+  function ezText(text, cx, angle) {
+    ctx.save();
+    ctx.translate(cx, H / 2);
+    ctx.rotate(angle);
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.font = 'bold 17px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(text, 0, 6);
+    ctx.restore();
+  }
+  ezText('YOU', EZ/2, -Math.PI/2);
+  ezText('END ZONE', W - EZ/2, Math.PI/2);
+
+  // Yard lines
+  for (let y = 0; y <= 100; y += 5) {
+    const x = yx(y);
+    const isMajor = y % 10 === 0;
+    ctx.strokeStyle = isMajor ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = isMajor ? 2 : 1;
+    ctx.beginPath();
+    ctx.moveTo(x, 18);
+    ctx.lineTo(x, H - 18);
+    ctx.stroke();
+
+    if (isMajor && y > 0 && y < 100) {
+      const num = y <= 50 ? y : 100 - y;
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.font = '11px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(num, x, 14);
+      ctx.fillText(num, x, H - 5);
+    }
+  }
+
+  // Hash marks
+  for (let y = 1; y < 100; y++) {
+    if (y % 5 === 0) continue;
+    const x = yx(y);
+    [[H * 0.36, H * 0.36 + 7], [H * 0.64, H * 0.64 + 7]].forEach(([y1, y2]) => {
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, y1);
+      ctx.lineTo(x, y2);
+      ctx.stroke();
+    });
+  }
+
+  // First down line (yellow)
+  if (firstDownYard <= 100) {
+    const fdx = yx(firstDownYard);
+    ctx.save();
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#ffd700';
+    ctx.shadowBlur = 6;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.moveTo(fdx, 0);
+    ctx.lineTo(fdx, H);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  // Line of scrimmage (blue)
+  const losx = yx(ballYard);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(150, 200, 255, 0.7)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5, 4]);
+  ctx.beginPath();
+  ctx.moveTo(losx, 0);
+  ctx.lineTo(losx, H);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawBall() {
+  if (!ball) return;
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 8;
+  const angle = Math.atan2(ball.vy, ball.vx);
+  ctx.beginPath();
+  ctx.ellipse(ball.x, ball.y, 11, 6, angle, 0, Math.PI * 2);
+  ctx.fillStyle = '#8B4513';
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // laces
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  ctx.lineWidth = 1;
+  for (let i = -1; i <= 1; i++) {
+    ctx.beginPath();
+    ctx.moveTo(ball.x + Math.cos(angle + Math.PI/2) * i * 2 - Math.cos(angle) * 3,
+               ball.y + Math.sin(angle + Math.PI/2) * i * 2 - Math.sin(angle) * 3);
+    ctx.lineTo(ball.x + Math.cos(angle + Math.PI/2) * i * 2 + Math.cos(angle) * 3,
+               ball.y + Math.sin(angle + Math.PI/2) * i * 2 + Math.sin(angle) * 3);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawTouchdownScreen() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, H/2 - 60, W, 120);
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 56px Arial Black';
+  ctx.textAlign = 'center';
+  ctx.shadowColor = '#ffaa00';
+  ctx.shadowBlur = 20;
+  ctx.fillText('TOUCHDOWN!', W/2, H/2 + 18);
+  ctx.restore();
+}
+
+function drawArrowToFirstDown() {
+  // Subtle indicator arrow for first down direction while in preSnap
+  if (state !== 'preSnap') return;
+  const fdx = yx(firstDownYard);
+  const losx = yx(ballYard);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,215,0,0.4)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(losx, H/2);
+  ctx.lineTo(fdx, H/2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ── Render loop ────────────────────────────────────────────────────────────
+let last = 0;
+function loop(ts) {
+  const dt = Math.min((ts - last) / 1000, 0.05);
+  last = ts;
+
+  update(dt);
+
+  ctx.clearRect(0, 0, W, H);
+  drawField();
+  drawArrowToFirstDown();
+
+  // Draw throw aim line
+  if (state === 'live' && carrier === qb && !qb.tackled) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 6]);
+    ctx.beginPath();
+    ctx.moveTo(qb.x, qb.y);
+    ctx.lineTo(mouse.x, mouse.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  // Receivers
+  wrs.forEach((wr, i) => wr.draw('WR'));
+  // Defenders
+  defs.forEach(d => d.draw());
+  // QB
+  qb.draw('QB');
+  // Ball in air
+  drawBall();
+
+  // Tackle ring
+  if (state === 'dead') {
+    wrs.forEach(wr => {
+      if (wr.tackled) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(wr.x, wr.y, 22, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ffff00';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.restore();
+      }
+    });
+    if (qb.tackled) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(qb.x, qb.y, 22, 0, Math.PI * 2);
+      ctx.strokeStyle = '#ffff00';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  if (state === 'touchdown') drawTouchdownScreen();
+
+  requestAnimationFrame(loop);
+}
+
+// ── HUD helpers ────────────────────────────────────────────────────────────
+function downStr(n) {
+  return ['', '1st', '2nd', '3rd', '4th'][n] || n + 'th';
+}
+
+function updateHUD() {
+  document.getElementById('h-score').textContent = score;
+  document.getElementById('h-down').textContent = downStr(down);
+  document.getElementById('h-togo').textContent = toGo;
+  const yd = Math.round(ballYard);
+  document.getElementById('h-field').textContent = yd <= 50 ? `Own ${yd}` : `Opp ${100 - yd}`;
+  document.getElementById('h-plays').textContent = plays;
+}
+
+function setMsg(m) {
+  document.getElementById('msg').textContent = m;
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+buildPlay();
+updateHUD();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

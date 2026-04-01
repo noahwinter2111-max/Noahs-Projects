@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spider-Math | Square Root Game</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --surface2:  #1f2937;
+      --border:    #30363d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --red:       #e8102a;
+      --blue:      #1a43bf;
+      --yellow:    #f0a500;
+      --green:     #238636;
+      --green-lit: #2ea043;
+      --purple:    #7c3aed;
+      --radius:    8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── PARTICLE OVERLAY ── */
+    #particle-layer {
+      position: fixed; inset: 0;
+      pointer-events: none;
+      z-index: 999;
+      overflow: hidden;
+    }
+
+    .particle {
+      position: absolute;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      pointer-events: none;
+      animation: particleFly 0.7s ease-out forwards;
+    }
+
+    @keyframes particleFly {
+      0%   { transform: translate(0,0) scale(1); opacity: 1; }
+      100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+    }
+
+    /* ── COMBO BANNER ── */
+    #combo-banner {
+      position: fixed;
+      top: 20px; left: 50%;
+      transform: translateX(-50%);
+      z-index: 998;
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 6px 16px;
+      border-radius: 99px;
+      background: var(--yellow);
+      color: #000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    #combo-banner.show {
+      animation: bannerPop 1.5s ease forwards;
+    }
+    @keyframes bannerPop {
+      0%   { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(0.8); }
+      15%  { opacity: 1; transform: translateX(-50%) translateY(0)     scale(1.05); }
+      70%  { opacity: 1; transform: translateX(-50%) translateY(0)     scale(1); }
+      100% { opacity: 0; transform: translateX(-50%) translateY(-6px)  scale(0.95); }
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px 28px 24px;
+      width: 480px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+      position: relative;
+    }
+
+    .card.shake {
+      animation: cardShake 0.35s ease;
+    }
+    @keyframes cardShake {
+      0%,100% { transform: translateX(0); }
+      20%      { transform: translateX(-8px); }
+      40%      { transform: translateX(8px); }
+      60%      { transform: translateX(-5px); }
+      80%      { transform: translateX(5px); }
+    }
+
+    .card.flash-green { animation: flashGreen 0.4s ease; }
+    .card.flash-red   { animation: flashRed   0.4s ease; }
+    @keyframes flashGreen { 0%,100% { box-shadow: 0 8px 40px rgba(0,0,0,0.6); } 50% { box-shadow: 0 0 0 3px var(--green-lit), 0 8px 40px rgba(0,0,0,0.6); } }
+    @keyframes flashRed   { 0%,100% { box-shadow: 0 8px 40px rgba(0,0,0,0.6); } 50% { box-shadow: 0 0 0 3px var(--red),       0 8px 40px rgba(0,0,0,0.6); } }
+
+    /* ── APP HEADER ── */
+    .app-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .spider-logo {
+      width: 30px; height: 30px;
+      background: var(--red);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+    .app-header h1 { font-size: 0.95rem; font-weight: 700; }
+    .app-header p  { font-size: 0.7rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    /* ── MODE SELECT ── */
+    .section-label {
+      font-size: 0.7rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--muted); margin-bottom: 10px;
+    }
+
+    .mode-grid { display: flex; flex-direction: column; gap: 7px; }
+
+    .mode-btn {
+      width: 100%; display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 13px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer; font-family: 'Inter', sans-serif;
+      color: var(--text); text-align: left;
+      transition: border-color 0.15s, background 0.15s;
+      margin-top: 0; font-size: 1rem; box-shadow: none;
+    }
+    .mode-btn:hover { background: #252d38; border-color: #4a5568; transform: none; box-shadow: none; }
+    .mode-btn:active { transform: none; box-shadow: none; }
+    .mode-left { display: flex; align-items: center; gap: 10px; }
+    .mode-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .mode-dot.easy   { background: var(--green-lit); }
+    .mode-dot.medium { background: var(--yellow); }
+    .mode-dot.hard   { background: var(--red); }
+    .mode-name { font-weight: 600; font-size: 0.875rem; }
+    .mode-desc { font-size: 0.75rem; color: var(--muted); margin-top: 1px; }
+    .mode-meta { text-align: right; font-size: 0.72rem; color: var(--muted); line-height: 1.5; }
+    .mode-hs { font-size: 0.68rem; color: var(--yellow); font-weight: 600; margin-top: 2px; }
+
+    /* ── GAME HUD ── */
+    #quiz-view { display: none; }
+
+    .hud {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      margin-bottom: 14px;
+      gap: 8px;
+    }
+
+    .hud-lives { display: flex; gap: 4px; align-items: center; }
+    .heart { font-size: 1rem; transition: transform 0.2s; }
+    .heart.lost { filter: grayscale(1) opacity(0.3); transform: scale(0.8); }
+
+    .hud-center { text-align: center; }
+    .hud-qnum {
+      font-size: 0.7rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .hud-streak {
+      font-size: 0.75rem; font-weight: 700; color: var(--yellow);
+      min-height: 16px; margin-top: 2px;
+    }
+
+    .hud-score { text-align: right; }
+    .hud-score-num {
+      font-size: 1.3rem; font-weight: 800;
+      letter-spacing: -0.03em; color: var(--text);
+      font-variant-numeric: tabular-nums;
+      transition: color 0.2s;
+    }
+    .hud-score-num.pop { animation: scorePop 0.3s ease; color: var(--yellow); }
+    @keyframes scorePop { 0% { transform: scale(1.4); } 100% { transform: scale(1); } }
+    .hud-hs { font-size: 0.65rem; color: var(--muted); font-weight: 500; margin-top: 1px; }
+
+    /* Multiplier badge */
+    .multiplier {
+      display: inline-block;
+      font-size: 0.65rem; font-weight: 800;
+      padding: 2px 6px; border-radius: 4px;
+      background: var(--yellow); color: #000;
+      opacity: 0; transition: opacity 0.2s;
+      margin-left: 4px; letter-spacing: 0.05em;
+    }
+    .multiplier.active { opacity: 1; }
+
+    /* Difficulty pill */
+    .diff-pill {
+      font-size: 0.65rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      padding: 3px 8px; border-radius: 99px; border: 1px solid;
+    }
+    .diff-pill.easy   { color: var(--green-lit); border-color: var(--green);  background: rgba(35,134,54,0.12); }
+    .diff-pill.medium { color: var(--yellow);    border-color: rgba(240,165,0,0.5); background: rgba(240,165,0,0.1); }
+    .diff-pill.hard   { color: #ff6b7a;          border-color: rgba(232,16,42,0.5); background: rgba(232,16,42,0.1); }
+
+    /* ── QUESTION PANEL ── */
+    .q-panel {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 16px 18px;
+      margin-bottom: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .timer-track {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px; background: var(--border);
+    }
+    .timer-fill {
+      height: 100%; width: 100%;
+      transition: width 0.1s linear, background-color 0.4s;
+      background: var(--blue);
+    }
+
+    .q-label {
+      font-size: 0.68rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--muted); margin-bottom: 10px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .timer-num {
+      font-variant-numeric: tabular-nums; font-weight: 700;
+      transition: color 0.3s;
+    }
+    .timer-num.urgent { color: var(--red); }
+
+    .q-row {
+      display: flex; align-items: center;
+      justify-content: center; gap: 12px;
+    }
+    .q-sqrt { font-size: 2rem; color: var(--muted); font-weight: 300; line-height: 1; }
+    .q-number {
+      font-size: 4.5rem; font-weight: 900;
+      letter-spacing: -0.04em; color: var(--text); line-height: 1;
+    }
+    .q-number.pop { animation: numPop 0.22s cubic-bezier(0.175,0.885,0.32,1.275); }
+    @keyframes numPop { 0% { transform: scale(0.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+    /* ── INPUT & BUTTON ── */
+    input[type="number"] {
+      width: 100%; padding: 11px 14px;
+      font-size: 1.5rem; font-family: 'Inter', sans-serif;
+      font-weight: 700; text-align: center;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--surface2); color: var(--text);
+      outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+      letter-spacing: -0.02em; margin-bottom: 8px;
+    }
+    input[type="number"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,67,191,0.2); }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+    #submit-btn {
+      width: 100%; padding: 10px;
+      font-family: 'Inter', sans-serif; font-size: 0.875rem; font-weight: 600;
+      border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius);
+      background: var(--red); color: #fff; cursor: pointer;
+      transition: background 0.15s; box-shadow: none; margin-top: 0;
+    }
+    #submit-btn:hover { background: #c50d24; transform: none; box-shadow: none; }
+    #submit-btn:active { background: #a00b1d; transform: none; box-shadow: none; }
+    #submit-btn:disabled { background: var(--surface2); color: var(--muted); border-color: var(--border); cursor: default; }
+
+    .feedback {
+      min-height: 20px; font-size: 0.8rem; font-weight: 600;
+      text-align: center; margin-top: 8px; letter-spacing: 0.01em;
+    }
+    .feedback.correct { color: var(--green-lit); }
+    .feedback.wrong   { color: #ff6b7a; }
+    .feedback.timeout { color: var(--yellow); }
+
+    /* points flash */
+    .pts-flash {
+      font-size: 0.72rem; font-weight: 700;
+      color: var(--yellow); margin-left: 6px;
+      display: inline-block;
+    }
+
+    .progress-track {
+      margin-top: 12px; height: 3px;
+      background: var(--surface2); border-radius: 99px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; background: var(--blue);
+      border-radius: 99px; transition: width 0.35s ease;
+    }
+
+    /* ── RESULTS / GAME OVER ── */
+    #results-view, #gameover-view { display: none; }
+
+    .end-header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 18px; padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .end-icon { font-size: 2rem; }
+    .end-title { font-size: 1rem; font-weight: 700; }
+    .end-sub   { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+    .stats-grid {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px; margin-bottom: 14px;
+    }
+    .stat-box {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px 8px; text-align: center;
+    }
+    .stat-val { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.03em; }
+    .stat-lbl { font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
+                letter-spacing: 0.07em; color: var(--muted); margin-top: 2px; }
+
+    .new-hs-badge {
+      text-align: center; font-size: 0.75rem; font-weight: 700;
+      color: var(--yellow); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 10px; min-height: 18px;
+    }
+
+    .end-msg {
+      font-size: 0.82rem; color: var(--muted); font-weight: 500;
+      text-align: center; margin-bottom: 16px;
+    }
+
+    .btn-row { display: flex; gap: 8px; }
+    .btn-primary, .btn-secondary {
+      flex: 1; padding: 10px; font-family: 'Inter', sans-serif;
+      font-size: 0.875rem; font-weight: 600;
+      border-radius: var(--radius); cursor: pointer;
+      transition: background 0.15s; margin-top: 0; box-shadow: none;
+    }
+    .btn-primary  { background: var(--red); color: #fff; border: 1px solid rgba(255,255,255,0.1); }
+    .btn-primary:hover   { background: #c50d24; transform: none; box-shadow: none; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: #252d38; transform: none; box-shadow: none; }
+    .btn-primary:active, .btn-secondary:active { transform: none; box-shadow: none; }
+  </style>
+</head>
+<body>
+  <div id="particle-layer"></div>
+  <div id="combo-banner"></div>
+
+  <div class="card" id="card">
+
+    <!-- SHARED HEADER -->
+    <div class="app-header">
+      <div class="spider-logo">🕷</div>
+      <div>
+        <h1>Spider-Math</h1>
+        <p>Square Root Game &mdash; Spider-Verse Edition</p>
+      </div>
+    </div>
+
+    <!-- MODE SELECT -->
+    <div id="mode-view">
+      <div class="section-label">Select difficulty</div>
+      <div class="mode-grid">
+        <button class="mode-btn" onclick="startGame('easy')">
+          <div class="mode-left">
+            <div class="mode-dot easy"></div>
+            <div><div class="mode-name">Easy</div><div class="mode-desc">Roots 1–10 &nbsp;·&nbsp; 15s per question</div></div>
+          </div>
+          <div class="mode-meta">3 lives<div class="mode-hs" id="hs-easy"></div></div>
+        </button>
+        <button class="mode-btn" onclick="startGame('medium')">
+          <div class="mode-left">
+            <div class="mode-dot medium"></div>
+            <div><div class="mode-name">Medium</div><div class="mode-desc">Roots 1–15 &nbsp;·&nbsp; 10s per question</div></div>
+          </div>
+          <div class="mode-meta">3 lives<div class="mode-hs" id="hs-medium"></div></div>
+        </button>
+        <button class="mode-btn" onclick="startGame('hard')">
+          <div class="mode-left">
+            <div class="mode-dot hard"></div>
+            <div><div class="mode-name">Hard</div><div class="mode-desc">Roots 1–25 &nbsp;·&nbsp; 7s per question</div></div>
+          </div>
+          <div class="mode-meta">3 lives<div class="mode-hs" id="hs-hard"></div></div>
+        </button>
+      </div>
+    </div>
+
+    <!-- QUIZ -->
+    <div id="quiz-view">
+      <!-- HUD -->
+      <div class="hud">
+        <div class="hud-lives" id="hud-lives"></div>
+        <div class="hud-center">
+          <div class="hud-qnum"><span id="diff-pill" class="diff-pill easy">Easy</span> &nbsp; <span id="q-counter">1 / 10</span></div>
+          <div class="hud-streak" id="hud-streak"></div>
+        </div>
+        <div class="hud-score">
+          <div class="hud-score-num" id="score-display">0</div>
+          <div class="hud-hs" id="hud-hs-label"></div>
+        </div>
+      </div>
+
+      <!-- Question panel -->
+      <div class="q-panel">
+        <div class="timer-track"><div class="timer-fill" id="timer-fill"></div></div>
+        <div class="q-label">
+          <span>&#x221A; Square root of...</span>
+          <span class="timer-num" id="timer-num">15s</span>
+        </div>
+        <div class="q-row">
+          <div class="q-sqrt">&#x221A;</div>
+          <div class="q-number" id="number-display">—</div>
+        </div>
+      </div>
+
+      <input type="number" id="answer-input" placeholder="Your answer" min="1" />
+      <button id="submit-btn">Submit</button>
+      <div class="feedback" id="feedback"></div>
+
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div id="results-view">
+      <div class="end-header">
+        <div class="end-icon" id="res-icon">🕸</div>
+        <div><div class="end-title" id="res-title">Mission Complete</div><div class="end-sub" id="res-sub"></div></div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-box"><div class="stat-val" id="res-score">0</div><div class="stat-lbl">Score</div></div>
+        <div class="stat-box"><div class="stat-val" id="res-correct">0/10</div><div class="stat-lbl">Correct</div></div>
+        <div class="stat-box"><div class="stat-val" id="res-streak">0</div><div class="stat-lbl">Best Streak</div></div>
+      </div>
+      <div class="new-hs-badge" id="res-hs-badge"></div>
+      <div class="end-msg" id="res-msg"></div>
+      <div class="btn-row">
+        <button class="btn-primary"   id="restart-btn">Play Again</button>
+        <button class="btn-secondary" id="change-mode-btn">Change Mode</button>
+      </div>
+    </div>
+
+    <!-- GAME OVER -->
+    <div id="gameover-view">
+      <div class="end-header">
+        <div class="end-icon">💀</div>
+        <div><div class="end-title">Game Over</div><div class="end-sub" id="go-sub"></div></div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-box"><div class="stat-val" id="go-score">0</div><div class="stat-lbl">Score</div></div>
+        <div class="stat-box"><div class="stat-val" id="go-correct">0</div><div class="stat-lbl">Correct</div></div>
+        <div class="stat-box"><div class="stat-val" id="go-streak">0</div><div class="stat-lbl">Best Streak</div></div>
+      </div>
+      <div class="new-hs-badge" id="go-hs-badge"></div>
+      <div class="end-msg" id="go-msg">You ran out of lives. Better luck next time.</div>
+      <div class="btn-row">
+        <button class="btn-primary"   id="go-retry-btn">Try Again</button>
+        <button class="btn-secondary" id="go-mode-btn">Change Mode</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ── CONFIG ──────────────────────────────────────────────────────────────
+    const TOTAL = 10;
+    const MAX_LIVES = 3;
+    const MODES = {
+      easy:   { maxRoot: 10, seconds: 15, label: 'Easy' },
+      medium: { maxRoot: 15, seconds: 10, label: 'Medium' },
+      hard:   { maxRoot: 25, seconds:  7, label: 'Hard' },
+    };
+    const MULTIPLIER_THRESHOLDS = [
+      { streak: 8, mult: 3,   label: '3× COMBO 🔥🔥🔥' },
+      { streak: 5, mult: 2,   label: '2× COMBO 🔥🔥' },
+      { streak: 3, mult: 1.5, label: '1.5× COMBO 🔥' },
+    ];
+
+    // ── STATE ────────────────────────────────────────────────────────────────
+    let score = 0, current = 0, lives = MAX_LIVES;
+    let currentAnswer = 0, answered = false;
+    let questionPool = [], currentMode = 'easy';
+    let streak = 0, bestStreak = 0, correctCount = 0;
+    let timerInterval = null, timeLeft = 0, totalTime = 0;
+
+    // ── DOM ──────────────────────────────────────────────────────────────────
+    const card         = document.getElementById('card');
+    const modeView     = document.getElementById('mode-view');
+    const quizView     = document.getElementById('quiz-view');
+    const resultsView  = document.getElementById('results-view');
+    const gameoverView = document.getElementById('gameover-view');
+    const numDisplay   = document.getElementById('number-display');
+    const answerInput  = document.getElementById('answer-input');
+    const submitBtn    = document.getElementById('submit-btn');
+    const feedback     = document.getElementById('feedback');
+    const qCounter     = document.getElementById('q-counter');
+    const scoreDisplay = document.getElementById('score-display');
+    const diffPill     = document.getElementById('diff-pill');
+    const timerFill    = document.getElementById('timer-fill');
+    const timerNum     = document.getElementById('timer-num');
+    const progressFill = document.getElementById('progress-fill');
+    const hudLives     = document.getElementById('hud-lives');
+    const hudStreak    = document.getElementById('hud-streak');
+    const hudHsLabel   = document.getElementById('hud-hs-label');
+    const particleLayer= document.getElementById('particle-layer');
+    const comboBanner  = document.getElementById('combo-banner');
+
+    // ── HIGH SCORES ──────────────────────────────────────────────────────────
+    function getHS(mode) { return parseInt(localStorage.getItem(`hs_${mode}`) || '0', 10); }
+    function setHS(mode, val) { localStorage.setItem(`hs_${mode}`, val); }
+    function updateHsDisplays() {
+      ['easy','medium','hard'].forEach(m => {
+        const hs = getHS(m);
+        const el = document.getElementById(`hs-${m}`);
+        el.textContent = hs > 0 ? `Best: ${hs.toLocaleString()}` : '';
+      });
+    }
+    updateHsDisplays();
+
+    // ── AUDIO ────────────────────────────────────────────────────────────────
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    function playTone(freq, type, duration, vol = 0.15, delay = 0) {
+      try {
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = type; osc.frequency.value = freq;
+        gain.gain.setValueAtTime(vol, ctx.currentTime + delay);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + duration);
+        osc.start(ctx.currentTime + delay);
+        osc.stop(ctx.currentTime + delay + duration);
+      } catch(e) {}
+    }
+
+    function sfxCorrect() {
+      playTone(523, 'sine', 0.12);
+      playTone(784, 'sine', 0.15, 0.15, 0.1);
+    }
+    function sfxCombo() {
+      playTone(659, 'sine', 0.1);
+      playTone(880, 'sine', 0.1, 0.15, 0.08);
+      playTone(1047,'sine', 0.15, 0.15, 0.16);
+    }
+    function sfxWrong() {
+      playTone(200, 'sawtooth', 0.25, 0.08);
+      playTone(150, 'sawtooth', 0.2,  0.06, 0.15);
+    }
+    function sfxTimeout() {
+      playTone(440, 'sine', 0.1);
+      playTone(330, 'sine', 0.1, 0.1, 0.1);
+      playTone(220, 'sine', 0.2, 0.1, 0.2);
+    }
+    function sfxGameOver() {
+      [440,330,220,110].forEach((f,i) => playTone(f,'sawtooth',0.3,0.08,i*0.15));
+    }
+    function sfxComplete() {
+      [523,659,784,1047].forEach((f,i) => playTone(f,'sine',0.2,0.15,i*0.1));
+    }
+
+    // ── PARTICLES ────────────────────────────────────────────────────────────
+    function burst(correct) {
+      const rect = card.getBoundingClientRect();
+      const cx = rect.left + rect.width  / 2;
+      const cy = rect.top  + rect.height / 2;
+      const colors = correct
+        ? ['#2ea043','#ffd700','#e6edf3','#1a43bf']
+        : ['#e8102a','#ff6b7a','#7c3aed'];
+
+      for (let i = 0; i < (correct ? 14 : 8); i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        const angle = (i / (correct ? 14 : 8)) * Math.PI * 2;
+        const dist  = 60 + Math.random() * 80;
+        const tx = Math.cos(angle) * dist + (Math.random()-0.5)*30;
+        const ty = Math.sin(angle) * dist + (Math.random()-0.5)*30;
+        p.style.cssText = `
+          left:${cx}px; top:${cy}px;
+          background:${colors[i % colors.length]};
+          --tx:${tx}px; --ty:${ty}px;
+          width:${6+Math.random()*6}px; height:${6+Math.random()*6}px;
+          animation-duration:${0.5+Math.random()*0.4}s;
+          animation-delay:${Math.random()*0.05}s;
+        `;
+        particleLayer.appendChild(p);
+        p.addEventListener('animationend', () => p.remove());
+      }
+    }
+
+    // ── COMBO BANNER ─────────────────────────────────────────────────────────
+    function showComboBanner(text) {
+      comboBanner.textContent = text;
+      comboBanner.className = '';
+      void comboBanner.offsetWidth;
+      comboBanner.className = 'show';
+    }
+
+    // ── LIVES ────────────────────────────────────────────────────────────────
+    function renderLives() {
+      hudLives.innerHTML = '';
+      for (let i = 0; i < MAX_LIVES; i++) {
+        const h = document.createElement('span');
+        h.className = 'heart' + (i >= lives ? ' lost' : '');
+        h.textContent = '❤️';
+        hudLives.appendChild(h);
+      }
+    }
+
+    function loseLife() {
+      lives--;
+      renderLives();
+    }
+
+    // ── MULTIPLIER ───────────────────────────────────────────────────────────
+    function getMultiplier() {
+      for (const t of MULTIPLIER_THRESHOLDS) {
+        if (streak >= t.streak) return t;
+      }
+      return { mult: 1, label: '' };
+    }
+
+    function renderStreak() {
+      if (streak >= 3) {
+        const { label } = getMultiplier();
+        hudStreak.textContent = label;
+      } else if (streak > 0) {
+        hudStreak.textContent = `${streak} streak`;
+      } else {
+        hudStreak.textContent = '';
+      }
+    }
+
+    // ── SCORE ANIMATION ──────────────────────────────────────────────────────
+    function addPoints(pts) {
+      score += pts;
+      scoreDisplay.textContent = score.toLocaleString();
+      scoreDisplay.classList.remove('pop');
+      void scoreDisplay.offsetWidth;
+      scoreDisplay.classList.add('pop');
+      const hs = getHS(currentMode);
+      hudHsLabel.textContent = `Best ${hs.toLocaleString()}`;
+    }
+
+    // ── SHUFFLE ──────────────────────────────────────────────────────────────
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    // ── TIMER ────────────────────────────────────────────────────────────────
+    function startTimer(seconds) {
+      clearInterval(timerInterval);
+      timeLeft = seconds; totalTime = seconds;
+      updateTimerUI();
+      timerInterval = setInterval(() => {
+        timeLeft = Math.max(0, timeLeft - 0.1);
+        updateTimerUI();
+        if (timeLeft === 0) { clearInterval(timerInterval); onTimeout(); }
+      }, 100);
+    }
+
+    function stopTimer() { clearInterval(timerInterval); }
+
+    function updateTimerUI() {
+      const pct = timeLeft / totalTime;
+      timerFill.style.width = `${pct * 100}%`;
+      const secs = Math.ceil(timeLeft);
+      timerNum.textContent = `${secs}s`;
+      if (pct > 0.5)      { timerFill.style.background = 'var(--blue)';   timerNum.className = 'timer-num'; }
+      else if (pct > 0.25){ timerFill.style.background = 'var(--yellow)'; timerNum.className = 'timer-num'; }
+      else                 { timerFill.style.background = 'var(--red)';    timerNum.className = 'timer-num urgent'; }
+    }
+
+    function onTimeout() {
+      if (answered) return;
+      answered = true;
+      sfxTimeout();
+      answerInput.disabled = true;
+      feedback.textContent = `Time's up — answer was ${currentAnswer}.`;
+      feedback.className = 'feedback timeout';
+      loseLife();
+      streak = 0; renderStreak();
+      cardEffect('shake'); cardEffect('flash-red');
+      submitBtn.textContent = current + 1 < TOTAL ? 'Next' : 'Finish';
+      if (lives <= 0) {
+        setTimeout(showGameOver, 900);
+      }
+    }
+
+    // ── CARD EFFECTS ─────────────────────────────────────────────────────────
+    function cardEffect(cls) {
+      card.classList.remove(cls);
+      void card.offsetWidth;
+      card.classList.add(cls);
+      card.addEventListener('animationend', () => card.classList.remove(cls), { once: true });
+    }
+
+    // ── GAME FLOW ────────────────────────────────────────────────────────────
+    function startGame(mode) {
+      currentMode = mode;
+      score = 0; current = 0; lives = MAX_LIVES;
+      streak = 0; bestStreak = 0; correctCount = 0;
+      questionPool = shuffle(Array.from({ length: MODES[mode].maxRoot }, (_, i) => i + 1)).slice(0, TOTAL);
+      diffPill.textContent = MODES[mode].label;
+      diffPill.className = `diff-pill ${mode}`;
+      scoreDisplay.textContent = '0';
+      hudHsLabel.textContent = `Best ${getHS(mode).toLocaleString()}`;
+      renderLives(); renderStreak();
+      modeView.style.display   = 'none';
+      resultsView.style.display  = 'none';
+      gameoverView.style.display = 'none';
+      quizView.style.display   = 'block';
+      generateQuestion();
+    }
+
+    function generateQuestion() {
+      currentAnswer = questionPool[current];
+      numDisplay.classList.remove('pop');
+      void numDisplay.offsetWidth;
+      numDisplay.classList.add('pop');
+      numDisplay.textContent = currentAnswer * currentAnswer;
+      answerInput.value = ''; answerInput.disabled = false;
+      submitBtn.disabled = false; submitBtn.textContent = 'Submit';
+      feedback.textContent = ''; feedback.className = 'feedback';
+      answered = false;
+      qCounter.textContent = `${current + 1} / ${TOTAL}`;
+      progressFill.style.width = `${(current / TOTAL) * 100}%`;
+      startTimer(MODES[currentMode].seconds);
+      answerInput.focus();
+    }
+
+    function submit() {
+      if (answered) {
+        stopTimer();
+        current++;
+        if (current >= TOTAL) { showResults(); return; }
+        generateQuestion();
+        return;
+      }
+
+      const val = parseInt(answerInput.value, 10);
+      if (isNaN(val)) return;
+
+      stopTimer();
+      answered = true;
+      answerInput.disabled = true;
+
+      if (val === currentAnswer) {
+        correctCount++;
+        streak++;
+        if (streak > bestStreak) bestStreak = streak;
+        renderStreak();
+
+        const { mult, label } = getMultiplier();
+        const timeBonus = Math.floor((timeLeft / totalTime) * 50);
+        const base = 100 + timeBonus;
+        const pts  = Math.round(base * mult);
+        addPoints(pts);
+
+        const ptsStr = pts !== base ? `+${pts} (×${mult})` : `+${pts}`;
+        feedback.innerHTML = `Correct! <span class="pts-flash">${ptsStr}</span>`;
+        feedback.className = 'feedback correct';
+        sfxCorrect();
+        burst(true);
+        cardEffect('flash-green');
+
+        if (streak >= 3 && label) {
+          sfxCombo();
+          showComboBanner(label);
+        }
+      } else {
+        streak = 0; renderStreak();
+        loseLife();
+        feedback.textContent = `Wrong — it was ${currentAnswer}.`;
+        feedback.className = 'feedback wrong';
+        sfxWrong();
+        burst(false);
+        cardEffect('shake'); cardEffect('flash-red');
+      }
+
+      submitBtn.textContent = current + 1 < TOTAL ? 'Next' : 'Finish';
+
+      if (lives <= 0 && val !== currentAnswer) {
+        setTimeout(showGameOver, 900);
+      }
+    }
+
+    function saveHighScore() {
+      const prev = getHS(currentMode);
+      const isNew = score > prev;
+      if (isNew) { setHS(currentMode, score); updateHsDisplays(); }
+      return isNew;
+    }
+
+    function showResults() {
+      stopTimer();
+      quizView.style.display    = 'none';
+      resultsView.style.display = 'block';
+      const isNew = saveHighScore();
+      const pct = correctCount / TOTAL;
+
+      document.getElementById('res-score').textContent   = score.toLocaleString();
+      document.getElementById('res-correct').textContent = `${correctCount}/${TOTAL}`;
+      document.getElementById('res-streak').textContent  = bestStreak;
+      document.getElementById('res-hs-badge').textContent = isNew ? '🏆 New High Score!' : '';
+      document.getElementById('res-sub').textContent     = `${MODES[currentMode].label} mode`;
+
+      const icon = document.getElementById('res-icon');
+      const title = document.getElementById('res-title');
+      const msg  = document.getElementById('res-msg');
+      if (pct === 1)       { icon.textContent='🏆'; title.textContent='Perfect Score';    msg.textContent='You ARE the spider. Unstoppable.'; sfxComplete(); }
+      else if (pct >= 0.8) { icon.textContent='🕷'; title.textContent='Mission Complete'; msg.textContent='Friendly neighborhood genius.'; sfxComplete(); }
+      else if (pct >= 0.6) { icon.textContent='🕸'; title.textContent='Mission Complete'; msg.textContent='Miles would be proud.'; }
+      else if (pct >= 0.4) { icon.textContent='📋'; title.textContent='Needs Improvement'; msg.textContent='More practice recommended.'; }
+      else                 { icon.textContent='📚'; title.textContent='Needs Improvement'; msg.textContent='Into the study-verse with you.'; }
+    }
+
+    function showGameOver() {
+      stopTimer();
+      quizView.style.display     = 'none';
+      gameoverView.style.display = 'block';
+      const isNew = saveHighScore();
+      sfxGameOver();
+      document.getElementById('go-score').textContent   = score.toLocaleString();
+      document.getElementById('go-correct').textContent = correctCount;
+      document.getElementById('go-streak').textContent  = bestStreak;
+      document.getElementById('go-hs-badge').textContent = isNew ? '🏆 New High Score!' : '';
+      document.getElementById('go-sub').textContent     = `${MODES[currentMode].label} mode — Q${current+1} of ${TOTAL}`;
+    }
+
+    // ── EVENTS ───────────────────────────────────────────────────────────────
+    document.getElementById('restart-btn')    .addEventListener('click', () => startGame(currentMode));
+    document.getElementById('change-mode-btn').addEventListener('click', () => { stopTimer(); resultsView.style.display='none'; modeView.style.display='block'; });
+    document.getElementById('go-retry-btn')   .addEventListener('click', () => startGame(currentMode));
+    document.getElementById('go-mode-btn')    .addEventListener('click', () => { stopTimer(); gameoverView.style.display='none'; modeView.style.display='block'; });
+    submitBtn .addEventListener('click', submit);
+    answerInput.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+  </script>
+</body>
+</html>

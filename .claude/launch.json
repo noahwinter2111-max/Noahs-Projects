@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "arcade",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/Users/noahwinter/Desktop/Projects/square_root_game/server.py"],
+      "port": 5500
+    }
+  ]
+}

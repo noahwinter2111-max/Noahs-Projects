@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Stack</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0f;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      cursor: pointer;
+      touch-action: none;
+    }
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+
+function resize() {
+  canvas.width  = Math.min(window.innerWidth,  460);
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── constants ─────────────────────────────────────────────────────────────
+const BH             = 32;   // block height
+const PERFECT_PX     = 6;    // pixels of tolerance for "perfect"
+const MAX_SPEED      = 9;
+const BASE_SPEED     = 2.8;
+const SPEED_PER_PT   = 0.13;
+
+const PALETTE = [
+  '#FF6B6B','#FF8E53','#FFC43D','#06D6A0',
+  '#4CC9F0','#A855F7','#F72585','#43AA8B',
+  '#577590','#F94144','#90BE6D','#F9844A',
+];
+
+// ── state ─────────────────────────────────────────────────────────────────
+let state, score, best, stack, mover;
+let camY, targetCam, particles;
+let perfectTimer, comboCount, bestRun;
+let audioCtx;
+
+// ── init / reset ──────────────────────────────────────────────────────────
+function init() {
+  state       = 'start';
+  score       = 0;
+  best        = parseInt(localStorage.getItem('stackBest') || '0');
+  stack       = [];
+  mover       = null;
+  camY        = 0;
+  targetCam   = 0;
+  particles   = [];
+  perfectTimer = 0;
+  comboCount  = 1;
+
+  const bw = canvas.width * 0.6;
+  stack.push({ x: (canvas.width - bw) / 2, w: bw, wy: 0, color: PALETTE[0] });
+}
+
+function startGame() {
+  state = 'play';
+  spawnMover();
+}
+
+function spawnMover() {
+  const top   = stack[stack.length - 1];
+  const speed = Math.min(BASE_SPEED + score * SPEED_PER_PT, MAX_SPEED);
+  mover = {
+    x:     0,
+    w:     top.w,
+    wy:    -(stack.length * BH),
+    color: PALETTE[stack.length % PALETTE.length],
+    dir:   1,
+    speed,
+  };
+}
+
+// ── coordinate helpers ────────────────────────────────────────────────────
+function toScreen(wy) {
+  return canvas.height - 130 + wy + camY;
+}
+
+// ── place block ───────────────────────────────────────────────────────────
+function place() {
+  const top = stack[stack.length - 1];
+  const ol  = Math.max(mover.x, top.x);
+  const or_ = Math.min(mover.x + mover.w, top.x + top.w);
+  const ow  = or_ - ol;
+
+  if (ow <= 0) { endGame(); return; }
+
+  const diff    = Math.abs(mover.x - top.x);
+  const perfect = diff <= PERFECT_PX;
+
+  let nx, nw;
+  if (perfect) {
+    nx         = top.x;
+    nw         = top.w;
+    comboCount = Math.min(comboCount + 1, 6);
+    perfectTimer = 90;
+    emit(canvas.width / 2, toScreen(mover.wy) - BH / 2, '#FFC43D', 28);
+    beep('perfect');
+  } else {
+    nx = ol; nw = ow;
+    comboCount = 1;
+    // particles for the cut-off chunk
+    const cutW = mover.w - ow;
+    const cutX = mover.x < top.x
+      ? mover.x + (top.x - mover.x) / 2
+      : top.x + top.w + cutW / 2;
+    emit(cutX, toScreen(mover.wy) - BH / 2, mover.color, 12);
+    beep('place');
+  }
+
+  stack.push({ x: nx, w: nw, wy: mover.wy, color: mover.color });
+  score += comboCount;
+  if (score > best) { best = score; localStorage.setItem('stackBest', best); }
+  targetCam = (stack.length - 1) * BH;
+  spawnMover();
+}
+
+function endGame() {
+  state = 'over';
+  emit(canvas.width / 2, canvas.height / 2, '#FF6B6B', 50);
+  beep('over');
+}
+
+// ── particles ─────────────────────────────────────────────────────────────
+function emit(x, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = Math.random() * 7 + 1.5;
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * s,
+      vy: Math.sin(a) * s - 2.5,
+      color,
+      life: 45 + Math.random() * 35,
+      maxLife: 80,
+      size: Math.random() * 5 + 2,
+    });
+  }
+}
+
+// ── audio ─────────────────────────────────────────────────────────────────
+function beep(type) {
+  try {
+    if (!audioCtx) audioCtx = new AudioContext();
+    const ac = audioCtx;
+    const o  = ac.createOscillator();
+    const g  = ac.createGain();
+    o.connect(g); g.connect(ac.destination);
+    const t = ac.currentTime;
+
+    if (type === 'place') {
+      o.type = 'square';
+      o.frequency.setValueAtTime(180 + score * 6, t);
+      o.frequency.exponentialRampToValueAtTime(90, t + 0.07);
+      g.gain.setValueAtTime(0.07, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+      o.start(t); o.stop(t + 0.1);
+    } else if (type === 'perfect') {
+      o.type = 'sine';
+      o.frequency.setValueAtTime(660, t);
+      o.frequency.exponentialRampToValueAtTime(1320, t + 0.18);
+      g.gain.setValueAtTime(0.14, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      o.start(t); o.stop(t + 0.25);
+      // second note
+      const o2 = ac.createOscillator(), g2 = ac.createGain();
+      o2.connect(g2); g2.connect(ac.destination);
+      o2.type = 'sine';
+      o2.frequency.setValueAtTime(880, t + 0.1);
+      o2.frequency.exponentialRampToValueAtTime(1760, t + 0.28);
+      g2.gain.setValueAtTime(0.1, t + 0.1);
+      g2.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+      o2.start(t + 0.1); o2.stop(t + 0.35);
+    } else {
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(220, t);
+      o.frequency.exponentialRampToValueAtTime(55, t + 0.35);
+      g.gain.setValueAtTime(0.12, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+      o.start(t); o.stop(t + 0.4);
+    }
+  } catch (_) {}
+}
+
+// ── update ────────────────────────────────────────────────────────────────
+function update() {
+  camY += (targetCam - camY) * 0.09;
+
+  if (state === 'play' && mover) {
+    mover.x += mover.dir * mover.speed;
+    if (mover.x <= 0)                          { mover.x = 0; mover.dir = 1; }
+    if (mover.x + mover.w >= canvas.width)     { mover.x = canvas.width - mover.w; mover.dir = -1; }
+  }
+
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.22;
+    p.life--;
+  });
+  particles = particles.filter(p => p.life > 0);
+
+  if (perfectTimer > 0) perfectTimer--;
+}
+
+// ── draw helpers ──────────────────────────────────────────────────────────
+function drawBlock(x, y, w, h, color, alpha) {
+  ctx.globalAlpha = alpha ?? 1;
+
+  // Drop shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(x + 5, y + 5, w, h);
+
+  // Body
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, h);
+
+  // Top highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.28)';
+  ctx.fillRect(x, y, w, 6);
+
+  // Bottom groove
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.fillRect(x, y + h - 5, w, 5);
+
+  // Right edge
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.fillRect(x + w - 5, y + 6, 5, h - 11);
+
+  ctx.globalAlpha = 1;
+}
+
+function fillText(txt, x, y, font, color, alpha) {
+  ctx.globalAlpha = alpha ?? 1;
+  ctx.fillStyle   = color;
+  ctx.font        = font;
+  ctx.textAlign   = 'center';
+  ctx.fillText(txt, x, y);
+  ctx.globalAlpha = 1;
+}
+
+// ── draw ──────────────────────────────────────────────────────────────────
+function draw() {
+  // Animated background gradient
+  const hue = (score * 2.4) % 360;
+  const bg  = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  bg.addColorStop(0, `hsl(${hue},28%,5%)`);
+  bg.addColorStop(1, `hsl(${(hue + 50) % 360},28%,13%)`);
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Stack blocks
+  for (const b of stack) {
+    const sy = toScreen(b.wy);
+    if (sy > canvas.height + BH || sy < -BH) continue;
+    drawBlock(b.x, sy - BH, b.w, BH, b.color);
+  }
+
+  // Moving block
+  if (mover && state === 'play') {
+    const sy  = toScreen(mover.wy);
+    const top = stack[stack.length - 1];
+
+    // Guide outline (where top block is)
+    ctx.strokeStyle = 'rgba(255,255,255,0.09)';
+    ctx.lineWidth   = 1;
+    ctx.setLineDash([5, 7]);
+    ctx.strokeRect(top.x, sy - BH, top.w, BH);
+    ctx.setLineDash([]);
+
+    drawBlock(mover.x, sy - BH, mover.w, BH, mover.color, 0.92);
+  }
+
+  // Particles
+  for (const p of particles) {
+    ctx.globalAlpha = (p.life / p.maxLife) * 0.9;
+    ctx.fillStyle   = p.color;
+    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+
+  // Score
+  const cx = canvas.width / 2;
+  fillText(score, cx, 80, `bold 64px system-ui,sans-serif`, 'rgba(255,255,255,0.95)');
+  fillText('best ' + best, cx, 110, `16px system-ui,sans-serif`, 'rgba(255,255,255,0.38)');
+
+  // PERFECT banner
+  if (perfectTimer > 0) {
+    const a = Math.min(perfectTimer / 25, 1);
+    const label = comboCount >= 3 ? `PERFECT ×${comboCount}` : 'PERFECT!';
+    // glow
+    ctx.globalAlpha = a * 0.35;
+    ctx.fillStyle   = '#FFC43D';
+    ctx.font        = 'bold 34px system-ui,sans-serif';
+    ctx.textAlign   = 'center';
+    for (let d = -3; d <= 3; d += 1.5) ctx.fillText(label, cx + d, canvas.height / 2 - 55 + d);
+    ctx.globalAlpha = 1;
+    fillText(label, cx, canvas.height / 2 - 55, 'bold 34px system-ui,sans-serif', '#FFC43D', a);
+  }
+
+  // ── Start screen ──────────────────────────────────────────────────────
+  if (state === 'start') {
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    fillText('STACK', cx, canvas.height / 2 - 30, 'bold 78px system-ui,sans-serif', '#fff');
+    fillText('tap — space — click', cx, canvas.height / 2 + 24, '20px system-ui,sans-serif', 'rgba(255,255,255,0.6)');
+    fillText('to drop the block', cx, canvas.height / 2 + 52, '20px system-ui,sans-serif', 'rgba(255,255,255,0.6)');
+
+    if (best > 0) {
+      fillText(`best  ${best}`, cx, canvas.height / 2 + 100, 'bold 20px system-ui,sans-serif', '#FFC43D', 0.85);
+    }
+  }
+
+  // ── Game over screen ──────────────────────────────────────────────────
+  if (state === 'over') {
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    fillText('GAME OVER', cx, canvas.height / 2 - 55, 'bold 52px system-ui,sans-serif', '#FF6B6B');
+    fillText(String(score),  cx, canvas.height / 2 + 10, 'bold 72px system-ui,sans-serif', '#fff');
+
+    const isNew = score >= best && score > 0;
+    fillText(
+      isNew ? '★  new best!' : `best  ${best}`,
+      cx, canvas.height / 2 + 62,
+      'bold 22px system-ui,sans-serif',
+      isNew ? '#FFC43D' : 'rgba(255,255,255,0.45)',
+    );
+
+    fillText('tap to play again', cx, canvas.height / 2 + 108, '20px system-ui,sans-serif', 'rgba(255,255,255,0.55)');
+  }
+}
+
+// ── game loop ─────────────────────────────────────────────────────────────
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// ── input ─────────────────────────────────────────────────────────────────
+function handleTap() {
+  if (state === 'start') { startGame(); return; }
+  if (state === 'play')  { place();     return; }
+  if (state === 'over')  { init(); startGame(); }
+}
+
+canvas.addEventListener('click',      handleTap);
+canvas.addEventListener('touchstart', e => { e.preventDefault(); handleTap(); }, { passive: false });
+document.addEventListener('keydown',  e => {
+  if ([' ', 'Enter', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+    e.preventDefault();
+    handleTap();
+  }
+});
+
+// ── go ────────────────────────────────────────────────────────────────────
+init();
+loop();
+</script>
+</body>
+</html>

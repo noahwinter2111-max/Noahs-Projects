@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>KICKOFF</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0c0c14;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Courier New', monospace;
+      user-select: none;
+    }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<canvas id="g" width="800" height="520"></canvas>
+<script>
+const canvas = document.getElementById('g');
+const ctx    = canvas.getContext('2d');
+const W = 800, H = 520;
+
+// ── Layout ──────────────────────────────────────────────────────────────────
+const FL = 32, FT = 32, FR = W-32, FB = H-32;
+const FW = FR-FL, FH = FB-FT;
+const GH = 120, GY1 = H/2-60, GY2 = H/2+60, GD = 26;
+
+// ── Constants ────────────────────────────────────────────────────────────────
+const BALL_R   = 10;
+const PLR_R    = 16;
+const PLR_SPD  = 255;
+const KICK_PWR = 400;
+const KICK_CD  = 0.22;   // player kick cooldown
+const FRICTION = 0.90;   // fraction of speed kept per second
+
+// CPU difficulty ranges
+const CPU_SPD_LO  = 115,  CPU_SPD_HI  = 265;
+const CPU_KCD_LO  = 0.42, CPU_KCD_HI  = 0.09;
+const CPU_RANGE_LO= 120,  CPU_RANGE_HI= 360;
+const CPU_AIM_LO  = 140,  CPU_AIM_HI  = 12;   // spread in px (shrinks over time)
+
+// ── State ────────────────────────────────────────────────────────────────────
+let phase = 'play';  // 'play'|'goal'|'over'
+let score = {p:0, c:0};
+let clock = 120;
+let goalMsg = '', goalCd = 0;
+
+// ── Entities — include velocity so collision can use it ──────────────────────
+const ball = {x:W/2, y:H/2, vx:0, vy:0};
+const plr  = {x:W*0.27, y:H/2, vx:0, vy:0, kcd:0};
+const cpu  = {x:W*0.73, y:H/2, vx:0, vy:0, kcd:0, aimY:H/2};
+
+// ── Particles ────────────────────────────────────────────────────────────────
+const parts = [];
+function spawnParts(x, y, col, n) {
+  for (let i=0; i<n; i++) {
+    const a = Math.random()*Math.PI*2, s = 50+Math.random()*220;
+    const life = 0.25+Math.random()*0.35;
+    parts.push({x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life, maxLife:life, col, sz:2+Math.random()*3});
+  }
+}
+function tickParts(dt) {
+  for (let i=parts.length-1; i>=0; i--) {
+    const p = parts[i];
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    p.vx *= 0.87;   p.vy *= 0.87;
+    p.life -= dt;
+    if (p.life <= 0) parts.splice(i, 1);
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const lerp  = (a,b,t) => a+(b-a)*t;
+
+function getDiff() {
+  const t = clamp((120-clock)/120, 0, 1);
+  return t*t;   // ease-in: gentle start, brutal finish
+}
+
+function reset() {
+  ball.x=W/2; ball.y=H/2; ball.vx=0; ball.vy=0;
+  plr.x=W*0.27; plr.y=H/2; plr.vx=0; plr.vy=0; plr.kcd=0;
+  cpu.x=W*0.73; cpu.y=H/2; cpu.vx=0; cpu.vy=0; cpu.kcd=0; cpu.aimY=H/2;
+}
+
+// ── Movement ─────────────────────────────────────────────────────────────────
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if ([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+function movePlayer(dt) {
+  let dx=0, dy=0;
+  if (keys['ArrowLeft']  || keys['a'] || keys['A']) dx -= 1;
+  if (keys['ArrowRight'] || keys['d'] || keys['D']) dx += 1;
+  if (keys['ArrowUp']    || keys['w'] || keys['W']) dy -= 1;
+  if (keys['ArrowDown']  || keys['s'] || keys['S']) dy += 1;
+  const px=plr.x, py=plr.y;
+  if (dx||dy) {
+    const l = Math.hypot(dx,dy);
+    plr.x = clamp(plr.x+(dx/l)*PLR_SPD*dt, FL+PLR_R, FR-PLR_R);
+    plr.y = clamp(plr.y+(dy/l)*PLR_SPD*dt, FT+PLR_R, FB-PLR_R);
+  }
+  // Track velocity for collision response
+  plr.vx = (plr.x-px)/dt;
+  plr.vy = (plr.y-py)/dt;
+  return {dx, dy};
+}
+
+function moveCPU(dt) {
+  const d0  = getDiff();
+  const spd = lerp(CPU_SPD_LO, CPU_SPD_HI, d0);
+  const rng = lerp(CPU_RANGE_LO, CPU_RANGE_HI, d0);
+  const defX= lerp(FR-48, FR-120, d0);
+
+  const dist = Math.hypot(cpu.x-ball.x, cpu.y-ball.y);
+  let tx, ty;
+  if (ball.x > W/2-80 || dist < rng) {
+    // Approach from the ball's right side so contact kicks it left
+    tx = ball.x + 38;
+    ty = ball.y;
+  } else {
+    tx = defX;
+    ty = clamp(ball.y, H/2-80, H/2+80);
+  }
+  const px=cpu.x, py=cpu.y;
+  const ddx=tx-cpu.x, ddy=ty-cpu.y, d=Math.hypot(ddx,ddy)||1;
+  cpu.x = clamp(cpu.x+(ddx/d)*spd*dt, FL+PLR_R, FR-PLR_R);
+  cpu.y = clamp(cpu.y+(ddy/d)*spd*dt, FT+PLR_R, FB-PLR_R);
+  cpu.vx = (cpu.x-px)/dt;
+  cpu.vy = (cpu.y-py)/dt;
+
+  // Drift aim target slowly (so CPU doesn't reroll each frame)
+  const spread = lerp(CPU_AIM_LO, CPU_AIM_HI, d0);
+  cpu.aimY += ((H/2 + (Math.random()-0.5)*spread*2) - cpu.aimY) * 0.04;
+}
+
+function separatePlayers() {
+  const dx=cpu.x-plr.x, dy=cpu.y-plr.y;
+  const d=Math.hypot(dx,dy)||0.001, min=PLR_R*2;
+  if (d < min) {
+    const push=(min-d)/2+0.5, nx=dx/d, ny=dy/d;
+    plr.x=clamp(plr.x-nx*push, FL+PLR_R, FR-PLR_R);
+    plr.y=clamp(plr.y-ny*push, FT+PLR_R, FB-PLR_R);
+    cpu.x=clamp(cpu.x+nx*push, FL+PLR_R, FR-PLR_R);
+    cpu.y=clamp(cpu.y+ny*push, FT+PLR_R, FB-PLR_R);
+  }
+}
+
+// ── Collision (velocity-based, no frame-by-frame dragging bug) ───────────────
+// kickX/kickY = intended kick direction (unit-ish). cd = cooldown for this entity.
+function collide(ent, kickX, kickY, dt, cd) {
+  ent.kcd = Math.max(0, ent.kcd-dt);
+  const dx=ball.x-ent.x, dy=ball.y-ent.y;
+  const d=Math.hypot(dx,dy)||0.001, minD=PLR_R+BALL_R;
+  if (d >= minD) return;
+
+  const nx=dx/d, ny=dy/d;
+
+  // 1. Separate — just enough to remove overlap, no more
+  const overlap = minD - d;
+  ball.x += nx*overlap;
+  ball.y += ny*overlap;
+
+  // 2. Velocity-based impulse (entity momentum transfers to ball)
+  const relVx = ball.vx - ent.vx;
+  const relVy = ball.vy - ent.vy;
+  const relN  = relVx*nx + relVy*ny;
+  if (relN < 0) {  // only resolve if approaching
+    const restitution = 0.60;
+    const impulse = -(1+restitution)*relN;
+    ball.vx += impulse*nx;
+    ball.vy += impulse*ny;
+    // Hard cap so tunnelling is impossible
+    const spd = Math.hypot(ball.vx, ball.vy);
+    if (spd > 700) { ball.vx *= 700/spd; ball.vy *= 700/spd; }
+  }
+
+  // 3. Kick: extra aimed impulse, once per cooldown
+  if (ent.kcd <= 0) {
+    ent.kcd = cd;
+    let kx=kickX, ky=kickY;
+    if (Math.hypot(kx,ky) < 0.01) { kx=nx; ky=ny; }  // fallback to normal
+    const km=Math.hypot(kx,ky);
+    ball.vx=(kx/km)*KICK_PWR;
+    ball.vy=(ky/km)*KICK_PWR;
+    spawnParts(ball.x, ball.y, '#ffffff', 7);
+  }
+}
+
+function updateBall(dt) {
+  ball.vx *= Math.pow(FRICTION, dt);
+  ball.vy *= Math.pow(FRICTION, dt);
+  ball.x  += ball.vx*dt;
+  ball.y  += ball.vy*dt;
+
+  if (ball.y-BALL_R < FT) { ball.y=FT+BALL_R; ball.vy= Math.abs(ball.vy)*0.70; }
+  if (ball.y+BALL_R > FB) { ball.y=FB-BALL_R; ball.vy=-Math.abs(ball.vy)*0.70; }
+
+  // Left wall / left goal → CPU scores
+  if (ball.x-BALL_R < FL) {
+    if (ball.y > GY1 && ball.y < GY2) {
+      score.c++; goalMsg='CPU SCORES!'; phase='goal'; goalCd=2.5;
+      spawnParts(ball.x, ball.y, '#ff4455', 30);
+    } else {
+      ball.x=FL+BALL_R; ball.vx=Math.abs(ball.vx)*0.70;
+    }
+  }
+  // Right wall / right goal → player scores
+  if (ball.x+BALL_R > FR) {
+    if (ball.y > GY1 && ball.y < GY2) {
+      score.p++; goalMsg='GOAL!'; phase='goal'; goalCd=2.5;
+      spawnParts(ball.x, ball.y, '#44aaff', 30);
+    } else {
+      ball.x=FR-BALL_R; ball.vx=-Math.abs(ball.vx)*0.70;
+    }
+  }
+}
+
+// ── Main update ──────────────────────────────────────────────────────────────
+function update(dt) {
+  tickParts(dt);
+
+  if (phase === 'over') {
+    if (keys[' ']) { score={p:0,c:0}; clock=120; phase='play'; reset(); }
+    return;
+  }
+  if (phase === 'goal') {
+    goalCd -= dt;
+    if (goalCd <= 0) { phase='play'; reset(); }
+    return;
+  }
+
+  clock -= dt;
+  if (clock <= 0) { clock=0; phase='over'; return; }
+
+  const {dx,dy} = movePlayer(dt);
+  moveCPU(dt);
+  separatePlayers();
+
+  // Player: kick in movement direction (or contact normal if standing)
+  collide(plr, dx, dy, dt, KICK_CD);
+
+  // CPU: kick aimed from ball toward its goal area target (not random per-frame)
+  const d0 = getDiff();
+  const cpuCd = lerp(CPU_KCD_LO, CPU_KCD_HI, d0);
+  const aimDx = FL - ball.x;               // direction: ball → left goal
+  const aimDy = cpu.aimY - ball.y;
+  collide(cpu, aimDx, aimDy, dt, cpuCd);
+
+  updateBall(dt);
+}
+
+// ── Static field (pre-rendered once) ─────────────────────────────────────────
+const fc=document.createElement('canvas'); fc.width=W; fc.height=H;
+const fx=fc.getContext('2d');
+(function() {
+  // Dark background
+  fx.fillStyle='#111820'; fx.fillRect(0,0,W,H);
+
+  // Grass stripes
+  for (let i=0;i<8;i++) {
+    fx.fillStyle = i%2 ? 'rgba(20,60,20,0.55)' : 'rgba(15,50,15,0.55)';
+    fx.fillRect(FL+i*(FW/8), FT, FW/8, FH);
+  }
+
+  // Neon field lines
+  fx.strokeStyle='rgba(80,220,120,0.65)'; fx.lineWidth=1.5;
+  fx.strokeRect(FL,FT,FW,FH);
+  fx.beginPath(); fx.moveTo(W/2,FT); fx.lineTo(W/2,FB); fx.stroke();
+  fx.beginPath(); fx.arc(W/2,H/2,62,0,Math.PI*2); fx.stroke();
+  fx.fillStyle='rgba(80,220,120,0.8)';
+  fx.beginPath(); fx.arc(W/2,H/2,3,0,Math.PI*2); fx.fill();
+  fx.strokeRect(FL,      H/2-98,116,196);
+  fx.strokeRect(FR-116,  H/2-98,116,196);
+  fx.strokeRect(FL,      H/2-48,48,96);
+  fx.strokeRect(FR-48,   H/2-48,48,96);
+  fx.fillStyle='rgba(80,220,120,0.8)';
+  fx.beginPath(); fx.arc(FL+78,H/2,2.5,0,Math.PI*2); fx.fill();
+  fx.beginPath(); fx.arc(FR-78,H/2,2.5,0,Math.PI*2); fx.fill();
+  [[FL,FT,0,Math.PI/2],[FR,FT,Math.PI/2,Math.PI],[FR,FB,Math.PI,1.5*Math.PI],[FL,FB,1.5*Math.PI,2*Math.PI]]
+    .forEach(([cx,cy,s,e])=>{fx.beginPath();fx.arc(cx,cy,11,s,e);fx.stroke();});
+
+  // Goal nets
+  fx.fillStyle='rgba(68,170,255,0.07)'; fx.fillRect(FL-GD,GY1,GD,GH);
+  fx.fillStyle='rgba(255,68,85,0.07)';  fx.fillRect(FR,GY1,GD,GH);
+  fx.strokeStyle='rgba(255,255,255,0.09)'; fx.lineWidth=1;
+  for (let y=GY1;y<=GY2;y+=13) {
+    fx.beginPath(); fx.moveTo(FL-GD,y); fx.lineTo(FL,y); fx.stroke();
+    fx.beginPath(); fx.moveTo(FR,y);    fx.lineTo(FR+GD,y); fx.stroke();
+  }
+  for (let x=0;x<=GD;x+=11) {
+    fx.beginPath(); fx.moveTo(FL-GD+x,GY1); fx.lineTo(FL-GD+x,GY2); fx.stroke();
+    fx.beginPath(); fx.moveTo(FR+x,GY1);    fx.lineTo(FR+x,GY2);    fx.stroke();
+  }
+
+  // Goalposts
+  fx.lineWidth=4; fx.strokeStyle='#e8e8e8'; fx.lineCap='square';
+  fx.beginPath();
+  fx.moveTo(FL,GY1); fx.lineTo(FL-GD,GY1);
+  fx.moveTo(FL,GY2); fx.lineTo(FL-GD,GY2);
+  fx.moveTo(FR,GY1); fx.lineTo(FR+GD,GY1);
+  fx.moveTo(FR,GY2); fx.lineTo(FR+GD,GY2);
+  fx.stroke();
+
+  // Coloured goal lines
+  fx.lineWidth=3; fx.lineCap='butt';
+  fx.strokeStyle='#44aaff';
+  fx.beginPath(); fx.moveTo(FL,GY1); fx.lineTo(FL,GY2); fx.stroke();
+  fx.strokeStyle='#ff4455';
+  fx.beginPath(); fx.moveTo(FR,GY1); fx.lineTo(FR,GY2); fx.stroke();
+})();
+
+// ── Draw helpers ─────────────────────────────────────────────────────────────
+function drawPlayer(e, fill, outline, label) {
+  // Shadow
+  ctx.fillStyle='rgba(0,0,0,0.35)';
+  ctx.beginPath(); ctx.ellipse(e.x+2, e.y+PLR_R-1, PLR_R*0.8, PLR_R*0.22, 0, 0, Math.PI*2); ctx.fill();
+  // Body
+  ctx.fillStyle=fill;
+  ctx.beginPath(); ctx.arc(e.x,e.y,PLR_R,0,Math.PI*2); ctx.fill();
+  // Outline (pixel-border feel: 2px solid)
+  ctx.strokeStyle=outline; ctx.lineWidth=2.5; ctx.stroke();
+  // Label
+  ctx.fillStyle='#fff'; ctx.font='bold 11px "Courier New"';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(label, e.x, e.y+1);
+}
+
+function drawBall() {
+  // Shadow
+  ctx.fillStyle='rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(ball.x+2, ball.y+BALL_R-1, BALL_R*0.8, BALL_R*0.22, 0, 0, Math.PI*2); ctx.fill();
+  // Ball body
+  ctx.fillStyle='#f0f0f0';
+  ctx.beginPath(); ctx.arc(ball.x,ball.y,BALL_R,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#333'; ctx.lineWidth=1; ctx.stroke();
+  // Pentagon patch (simple cross instead of slow rotating dots)
+  ctx.strokeStyle='#444'; ctx.lineWidth=1.2;
+  ctx.beginPath();
+  ctx.moveTo(ball.x, ball.y-BALL_R*0.55); ctx.lineTo(ball.x, ball.y+BALL_R*0.55);
+  ctx.moveTo(ball.x-BALL_R*0.55, ball.y); ctx.lineTo(ball.x+BALL_R*0.55, ball.y);
+  ctx.stroke();
+}
+
+function drawParticles() {
+  parts.forEach(p => {
+    ctx.globalAlpha = p.life/p.maxLife;
+    ctx.fillStyle = p.col;
+    ctx.fillRect(p.x-p.sz/2, p.y-p.sz/2, p.sz, p.sz); // square pixel
+  });
+  ctx.globalAlpha = 1;
+}
+
+function rrect(x,y,w,h,r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath();
+}
+
+function drawHUD() {
+  const m=Math.floor(clock/60), s=Math.floor(clock%60);
+  const urgent = clock < 30;
+
+  // Scoreboard
+  ctx.fillStyle='rgba(8,10,18,0.88)';
+  rrect(W/2-115, 8, 230, 56, 6); ctx.fill();
+  ctx.strokeStyle='rgba(80,220,120,0.25)'; ctx.lineWidth=1;
+  rrect(W/2-115, 8, 230, 56, 6); ctx.stroke();
+
+  ctx.textBaseline='top';
+  ctx.fillStyle='#ff4455'; ctx.font='bold 30px "Courier New"';
+  ctx.textAlign='right';  ctx.fillText(score.c, W/2-20, 12);
+
+  ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.font='18px "Courier New"';
+  ctx.textAlign='center'; ctx.fillText(':', W/2, 19);
+
+  ctx.fillStyle='#44aaff'; ctx.font='bold 30px "Courier New"';
+  ctx.textAlign='left';   ctx.fillText(score.p, W/2+20, 12);
+
+  ctx.fillStyle = urgent ? '#ff4455' : 'rgba(255,255,255,0.75)';
+  ctx.font=`bold ${urgent?15:13}px "Courier New"`;
+  ctx.textAlign='center';
+  ctx.fillText(`${m}:${String(s).padStart(2,'0')}`, W/2, 46);
+
+  ctx.font='9px "Courier New"';
+  ctx.fillStyle='#ff4455'; ctx.textAlign='right'; ctx.fillText('CPU', W/2-62, 47);
+  ctx.fillStyle='#44aaff'; ctx.textAlign='left';  ctx.fillText('YOU', W/2+62, 47);
+
+  // Difficulty bar — bottom right
+  const d0=getDiff(), bw=76, bh=6, bx=W-18-bw, by=H-16;
+  ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(bx-1,by-1,bw+2,bh+2);
+  // Manually fill segments instead of gradient (no per-frame gradient creation)
+  if (d0 > 0) {
+    const filled = bw*d0;
+    const hue = lerp(120, 0, d0); // green → red in HSL
+    ctx.fillStyle=`hsl(${hue},90%,55%)`; ctx.fillRect(bx,by,filled,bh);
+  }
+  ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1; ctx.strokeRect(bx,by,bw,bh);
+  ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.font='8px "Courier New"';
+  ctx.textAlign='right'; ctx.textBaseline='bottom';
+  ctx.fillText('HEAT', bx-4, by+bh+1);
+
+  // Controls hint
+  ctx.fillStyle='rgba(80,220,120,0.3)'; ctx.font='10px "Courier New"';
+  ctx.textAlign='center'; ctx.textBaseline='bottom';
+  ctx.fillText('[ WASD / ARROWS ] move + kick', W/2, H-5);
+}
+
+function drawGoalFlash() {
+  ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#ffe066'; ctx.font='bold 68px "Courier New"';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(goalMsg, W/2, H/2);
+}
+
+function drawGameOver() {
+  ctx.fillStyle='rgba(0,0,0,0.78)'; ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+
+  ctx.fillStyle='rgba(80,220,120,0.9)'; ctx.font='bold 46px "Courier New"';
+  ctx.fillText('[ FULL TIME ]', W/2, H/2-88);
+
+  ctx.fillStyle='#ff4455'; ctx.font='bold 72px "Courier New"';
+  ctx.fillText(score.c, W/2-52, H/2);
+  ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='bold 40px "Courier New"';
+  ctx.fillText('-', W/2, H/2);
+  ctx.fillStyle='#44aaff'; ctx.font='bold 72px "Courier New"';
+  ctx.fillText(score.p, W/2+52, H/2);
+
+  let msg, col;
+  if (score.p > score.c)      { msg='YOU WIN!';  col='#44aaff'; }
+  else if (score.c > score.p) { msg='CPU WINS!'; col='#ff4455'; }
+  else                        { msg='DRAW';       col='#ffe066'; }
+  ctx.fillStyle=col; ctx.font='bold 32px "Courier New"';
+  ctx.fillText(msg, W/2, H/2+68);
+
+  ctx.fillStyle='rgba(255,255,255,0.45)'; ctx.font='14px "Courier New"';
+  ctx.fillText('[ SPACE ] play again', W/2, H/2+116);
+}
+
+function draw() {
+  ctx.drawImage(fc, 0, 0);
+  drawParticles();
+  drawPlayer(cpu, '#cc2233','#ff4455','C');
+  drawPlayer(plr, '#1166cc','#44aaff','Y');
+  drawBall();
+  drawHUD();
+  if (phase==='goal') drawGoalFlash();
+  if (phase==='over')  drawGameOver();
+}
+
+// ── Loop ─────────────────────────────────────────────────────────────────────
+let last=0;
+function loop(ts) {
+  const dt = Math.min((ts-last)/1000, 0.05);
+  last = ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(ts => { last=ts; requestAnimationFrame(loop); });
+</script>
+</body>
+</html>

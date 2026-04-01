@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Civilisation Builder</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Georgia',serif;background:#111008;color:#d4c5a9;height:100vh;display:flex;flex-direction:column;overflow:hidden;user-select:none}
+button{font-family:'Georgia',serif;cursor:pointer}
+
+/* ── TOP BAR ── */
+#top{background:#1e160a;border-bottom:2px solid #3a2a10;padding:6px 14px;display:flex;align-items:center;gap:16px;flex-shrink:0}
+#game-title{font-size:16px;font-weight:bold;color:#e8c87a;white-space:nowrap;margin-right:8px}
+#age-badge{background:#2e200a;border:1px solid #6a4a1a;border-radius:12px;padding:2px 10px;font-size:11px;color:#c8a860;white-space:nowrap}
+#resources{display:flex;gap:10px;flex:1;justify-content:center;flex-wrap:nowrap}
+.res{display:flex;align-items:center;gap:5px;background:#1a1208;border:1px solid #2e2010;border-radius:8px;padding:4px 8px;min-width:110px}
+.res-icon{font-size:16px}
+.res-vals{display:flex;flex-direction:column}
+.res-name{font-size:9px;color:#7a6a4a;text-transform:uppercase;letter-spacing:1px}
+.res-val{font-size:14px;font-weight:bold;color:#f0d090;line-height:1}
+.res-rate{font-size:9px;line-height:1;margin-top:1px}
+.res-rate.pos{color:#7acc6a}.res-rate.neg{color:#cc7a5a}.res-rate.zer{color:#555}
+#pop-box{display:flex;flex-direction:column;align-items:flex-end;gap:2px;white-space:nowrap}
+#pop-label{font-size:11px;color:#c8a860}
+#pop-bar-wrap{width:100px;height:6px;background:#1a1208;border-radius:3px;overflow:hidden;border:1px solid #2e2010}
+#pop-bar{height:100%;background:linear-gradient(90deg,#4a8a3a,#7aba5a);border-radius:3px;transition:width .5s}
+#pop-unassigned{font-size:10px;color:#8a7a5a}
+
+/* ── MAIN ── */
+#main{display:flex;flex:1;overflow:hidden}
+
+/* ── CITY ── */
+#city{flex:1;display:flex;flex-direction:column;padding:10px;gap:8px;overflow:hidden}
+#city-header{display:flex;align-items:center;justify-content:space-between}
+#city-name{font-size:13px;color:#8a7a5a}
+#season-year{font-size:12px;color:#c8a860}
+#city-grid{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;flex:1}
+.tile{border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid #2a1e0a;background:#181006;transition:all .15s;position:relative;cursor:default;aspect-ratio:1}
+.tile.empty{opacity:.35}
+.tile.built{background:#221a08;border-color:#3e2e10;cursor:pointer}
+.tile.built:hover{background:#2e2410;border-color:#6a4e20;transform:scale(1.05);z-index:2}
+.tile.built .workers-badge{position:absolute;bottom:2px;right:3px;font-size:8px;color:#c8a860;line-height:1}
+
+/* ── SIDE PANEL ── */
+#side{width:290px;background:#150f05;border-left:2px solid #2e2010;display:flex;flex-direction:column;overflow:hidden}
+#tabs{display:flex;background:#1e150a;border-bottom:2px solid #2e2010;flex-shrink:0}
+.tab{flex:1;padding:7px 4px;text-align:center;font-size:11px;color:#7a6a4a;cursor:pointer;border-right:1px solid #2e2010;transition:all .15s;letter-spacing:.5px}
+.tab:last-child{border-right:none}
+.tab.on{background:#150f05;color:#e8c87a;border-bottom:2px solid #e8c87a;margin-bottom:-2px}
+.tab:hover:not(.on){background:#1a1208;color:#b09060}
+
+.panel{flex:1;overflow-y:auto;padding:10px;display:none}
+.panel.on{display:block}
+
+/* Build cards */
+.bcard{background:#1e160a;border:1px solid #2e2010;border-radius:6px;padding:9px;margin-bottom:7px;cursor:pointer;transition:all .15s}
+.bcard:hover:not(.locked):not(.cant){border-color:#6a4e20;background:#281e0c}
+.bcard.cant{opacity:.55;cursor:not-allowed}
+.bcard.locked{opacity:.35;cursor:not-allowed}
+.bcard-top{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+.bcard-icon{font-size:18px}
+.bcard-name{font-size:13px;font-weight:bold;color:#e8c87a;flex:1}
+.bcard-count{font-size:10px;color:#7a6a4a}
+.bcard-desc{font-size:10px;color:#7a6a4a;margin-bottom:5px}
+.bcard-costs{display:flex;gap:6px;flex-wrap:wrap}
+.cost{font-size:10px;display:flex;align-items:center;gap:2px}
+.cost.ok{color:#b0a070}.cost.no{color:#a04020}
+.bcard-locked-msg{font-size:10px;color:#6a5a3a;font-style:italic}
+
+/* Workers */
+.wcard{background:#1e160a;border:1px solid #2e2010;border-radius:6px;padding:9px;margin-bottom:7px}
+.wcard-top{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.wcard-icon{font-size:16px}
+.wcard-name{font-size:12px;color:#e8c87a;flex:1;font-weight:bold}
+.wcard-prod{font-size:10px;color:#6aaa5a}
+.wcard-controls{display:flex;align-items:center;gap:8px}
+.wbtn{background:#2e2010;border:1px solid #4e3a18;color:#d4c5a9;width:22px;height:22px;border-radius:4px;font-size:14px;line-height:1;transition:all .15s;padding:0;display:flex;align-items:center;justify-content:center}
+.wbtn:hover:not(:disabled){background:#4e3a18;color:#f0d090}
+.wbtn:disabled{opacity:.3;cursor:not-allowed}
+.wcnt{font-size:14px;color:#f0d090;min-width:28px;text-align:center}
+.wmax{font-size:10px;color:#7a6a4a}
+#unassigned-display{background:#221a08;border:1px solid #4e3a18;border-radius:6px;padding:7px;margin-bottom:10px;text-align:center;font-size:12px;color:#e8c87a}
+
+/* Research */
+.tcard{background:#1e160a;border:1px solid #2e2010;border-radius:6px;padding:9px;margin-bottom:7px;cursor:pointer;transition:all .15s}
+.tcard:hover:not(.done):not(.locked){border-color:#6a4e20;background:#281e0c}
+.tcard.done{border-color:#3a5a2a;background:#152010;cursor:default}
+.tcard.locked{opacity:.35;cursor:not-allowed}
+.tcard-top{display:flex;align-items:center;gap:7px;margin-bottom:4px}
+.tcard-icon{font-size:16px}
+.tcard-name{font-size:12px;font-weight:bold;color:#e8c87a;flex:1}
+.tcard-done{font-size:10px;color:#6aaa5a}
+.tcard-desc{font-size:10px;color:#7a6a4a;margin-bottom:5px}
+.tcard-req{font-size:10px;color:#6a5a3a;font-style:italic;margin-bottom:4px}
+
+/* Market panel */
+.mrow{display:flex;align-items:center;gap:8px;margin-bottom:8px;background:#1e160a;border:1px solid #2e2010;border-radius:6px;padding:8px}
+.mrow-label{font-size:12px;color:#c8a860;flex:1}
+.mbtn{background:#2e2010;border:1px solid #5a3a18;color:#d4c5a9;padding:3px 8px;border-radius:4px;font-size:11px;transition:all .15s}
+.mbtn:hover:not(:disabled){background:#5a3a18;color:#f0d090}
+.mbtn:disabled{opacity:.3;cursor:not-allowed}
+
+/* Log */
+#log-entries{display:flex;flex-direction:column;gap:1px}
+.log-entry{font-size:10px;padding:3px 4px;border-radius:3px;line-height:1.4}
+.log-entry.good{color:#7acc6a}.log-entry.bad{color:#cc7a5a}.log-entry.info{color:#7aaacc}.log-entry.mile{color:#e8c87a;font-weight:bold}.log-entry.plain{color:#7a6a4a}
+
+/* Notification */
+#notif{position:fixed;top:55px;left:50%;transform:translateX(-50%);background:#2e2010;border:2px solid #8a6a2a;border-radius:8px;padding:8px 18px;font-size:13px;color:#f0d090;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;text-align:center;max-width:380px;white-space:pre-line}
+#notif.show{opacity:1}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:#111008}
+::-webkit-scrollbar-thumb{background:#2e2010;border-radius:3px}
+
+/* Speed */
+#speed-btn{background:#2e2010;border:1px solid #5a3a18;color:#c8a860;padding:3px 8px;border-radius:10px;font-size:10px;transition:all .15s}
+#speed-btn:hover{background:#5a3a18}
+#speed-btn.fast{color:#ffcc44;border-color:#ffcc44}
+</style>
+</head>
+<body>
+
+<div id="notif"></div>
+
+<div id="top">
+  <div id="game-title">⚔️ Civilisation</div>
+  <div id="age-badge">Stone Age</div>
+  <div id="resources">
+    <div class="res" id="r-food">
+      <span class="res-icon">🌾</span>
+      <div class="res-vals">
+        <span class="res-name">Food</span>
+        <span class="res-val" id="v-food">0</span>
+        <span class="res-rate" id="rt-food">+0/s</span>
+      </div>
+    </div>
+    <div class="res" id="r-wood">
+      <span class="res-icon">🪵</span>
+      <div class="res-vals">
+        <span class="res-name">Wood</span>
+        <span class="res-val" id="v-wood">0</span>
+        <span class="res-rate" id="rt-wood">+0/s</span>
+      </div>
+    </div>
+    <div class="res" id="r-stone">
+      <span class="res-icon">🪨</span>
+      <div class="res-vals">
+        <span class="res-name">Stone</span>
+        <span class="res-val" id="v-stone">0</span>
+        <span class="res-rate" id="rt-stone">+0/s</span>
+      </div>
+    </div>
+    <div class="res" id="r-gold">
+      <span class="res-icon">💰</span>
+      <div class="res-vals">
+        <span class="res-name">Gold</span>
+        <span class="res-val" id="v-gold">0</span>
+        <span class="res-rate" id="rt-gold">+0/s</span>
+      </div>
+    </div>
+  </div>
+  <div id="pop-box">
+    <span id="pop-label">👥 5 / 10</span>
+    <div id="pop-bar-wrap"><div id="pop-bar" style="width:50%"></div></div>
+    <span id="pop-unassigned">5 idle workers</span>
+  </div>
+  <button id="speed-btn" onclick="toggleSpeed()">▶▶ Fast</button>
+</div>
+
+<div id="main">
+  <div id="city">
+    <div id="city-header">
+      <span id="city-name">🏕️ Your Settlement</span>
+      <span id="season-year">Spring · Year 1</span>
+    </div>
+    <div id="city-grid"></div>
+  </div>
+
+  <div id="side">
+    <div id="tabs">
+      <div class="tab on" onclick="switchTab('build')">Build</div>
+      <div class="tab" onclick="switchTab('workers')">Workers</div>
+      <div class="tab" onclick="switchTab('research')">Research</div>
+      <div class="tab" onclick="switchTab('market')">Market</div>
+      <div class="tab" onclick="switchTab('log')">Log</div>
+    </div>
+    <div id="p-build" class="panel on"></div>
+    <div id="p-workers" class="panel"></div>
+    <div id="p-research" class="panel"></div>
+    <div id="p-market" class="panel"></div>
+    <div id="p-log" class="panel"><div id="log-entries"></div></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// DEFINITIONS
+// ═══════════════════════════════════════════════
+
+const BDEF = {
+  house:      { name:'House',       icon:'🏠', desc:'Housing for 5 more citizens',        cost:{wood:30},                  maxW:0, prod:{},           housing:5,  minAge:0, max:20 },
+  farm:       { name:'Farm',        icon:'🌾', desc:'Workers harvest food',                cost:{wood:35},                  maxW:5, prod:{food:1.5},               minAge:0, max:8  },
+  lumbermill: { name:'Lumbermill',  icon:'🪓', desc:'Workers chop wood',                   cost:{wood:25},                  maxW:3, prod:{wood:1.0},               minAge:0, max:5  },
+  quarry:     { name:'Quarry',      icon:'⛏️', desc:'Workers mine stone',                  cost:{wood:30},                  maxW:3, prod:{stone:0.7},               minAge:0, max:4  },
+  granary:    { name:'Granary',     icon:'🏪', desc:'Increases food storage by 150',       cost:{wood:50,stone:30},         maxW:0, prod:{},           storage:{food:150}, minAge:0, max:3  },
+  mine:       { name:'Mine',        icon:'⚒️', desc:'Workers mine gold',                   cost:{wood:50,stone:40},         maxW:3, prod:{gold:0.3},               minAge:1, max:4  },
+  barracks:   { name:'Barracks',    icon:'⚔️', desc:'Defends against raids',               cost:{wood:60,stone:50},         maxW:3, prod:{},           defense:true, minAge:1, max:2  },
+  library:    { name:'Library',     icon:'📚', desc:'Enables research',                    cost:{wood:80,stone:60,gold:20}, maxW:3, prod:{},           research:true, minAge:1, max:1  },
+  market:     { name:'Market',      icon:'🏦', desc:'Trade resources',                     cost:{wood:60,stone:50},         maxW:0, prod:{},           trade:true, minAge:1, max:2  },
+  blacksmith: { name:'Blacksmith',  icon:'🔨', desc:'+25% all worker production',          cost:{wood:80,stone:60,gold:40}, maxW:0, prod:{},           prodBonus:0.25, minAge:2, max:2  },
+  temple:     { name:'Temple',      icon:'⛪', desc:'Population grows 50% faster',         cost:{wood:100,stone:80,gold:50},maxW:0, prod:{},           growBonus:1.5, minAge:2, max:1  },
+  walls:      { name:'Walls',       icon:'🧱', desc:'Strong defense against all threats',  cost:{stone:200,gold:30},        maxW:0, prod:{},           walls:true, minAge:2, max:1  },
+  castle:     { name:'Castle',      icon:'🏰', desc:'The pinnacle of civilisation!',       cost:{wood:200,stone:400,gold:250},maxW:0,prod:{},          victory:true, minAge:3, max:1  },
+};
+
+const TDEF = {
+  irrigation:   { name:'Irrigation',   icon:'💧', desc:'+50% food production',              cost:{food:60,wood:40,gold:10},  req:[],                    effect:'foodMult',   val:1.5,  needLib:true },
+  carpentry:    { name:'Carpentry',    icon:'🪚', desc:'+50% wood production',              cost:{wood:60,stone:20,gold:10}, req:[],                    effect:'woodMult',   val:1.5,  needLib:true },
+  masonry:      { name:'Masonry',      icon:'🪨', desc:'+50% stone production',             cost:{stone:50,gold:20},         req:[],                    effect:'stoneMult',  val:1.5,  needLib:true },
+  metallurgy:   { name:'Metallurgy',   icon:'⚗️', desc:'+100% gold production',             cost:{gold:60,stone:40},         req:['masonry'],            effect:'goldMult',   val:2.0,  needLib:true },
+  agriculture:  { name:'Agriculture',  icon:'🌿', desc:'Farms get +2 max workers',          cost:{food:100,wood:50,gold:10}, req:['irrigation'],         effect:'farmBonus',  val:2,    needLib:true },
+  ironworking:  { name:'Iron Working', icon:'🗡️', desc:'Unlocks Iron Age buildings',        cost:{gold:80,stone:60},         req:['carpentry','masonry'], effect:'advanceAge', val:2,    needLib:true },
+  engineering:  { name:'Engineering',  icon:'⚙️', desc:'Unlocks Medieval Age & +25% all',  cost:{gold:150,stone:100,wood:80},req:['ironworking'],        effect:'advanceAge', val:3,    needLib:true },
+};
+
+const CITY_NAMES = ['Stonehaven','Ironforge','Goldmere','Ashford','Thornwall','Oakbridge','Crestfall','Emberveil'];
+const EVENTS = [
+  { w:7,  fn: evGoodHarvest },
+  { w:10, fn: evDrought },
+  { w:6,  fn: evMigration },
+  { w:8,  fn: evPlague },
+  { w:6,  fn: evMerchant },
+  { w:10, fn: evRaid },
+  { w:5,  fn: evDiscovery },
+  { w:8,  fn: evStorm },
+];
+const SEASONS = ['Spring','Summer','Autumn','Winter'];
+const AGE_NAMES = ['Stone Age','Bronze Age','Iron Age','Medieval Age'];
+
+// ═══════════════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════════════
+
+let G = {
+  tick: 0,
+  year: 1,
+  seasonIdx: 0,
+  age: 0,
+  cityName: CITY_NAMES[Math.floor(Math.random()*CITY_NAMES.length)],
+  fast: false,
+
+  res: { food:50, wood:45, stone:0, gold:0 },
+  maxRes: { food:200, wood:200, stone:120, gold:60 },
+
+  pop: 5,
+  maxPop: 8,
+  idleWorkers: 5,
+
+  buildings: [], // { id, type, workers }
+  builtCount: {}, // type -> count
+
+  techs: new Set(),
+  mods: { foodMult:1, woodMult:1, stoneMult:1, goldMult:1, farmBonus:0, prodBonus:0, growBonus:1 },
+
+  nextEvent: 60,
+  effects: [], // { name, until, fn }
+
+  log: [],
+};
+
+let loopId = null;
+let activeTab = 'build';
+let tileCount = 9 * 6; // grid tiles
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+
+function init() {
+  buildGrid();
+  render();
+  loopId = setInterval(tick, 1000);
+}
+
+function buildGrid() {
+  const grid = document.getElementById('city-grid');
+  const terrainIcons = ['🌿','🌿','🌿','🌲','🌲','🌾','🪨','🌾','🌲'];
+  grid.innerHTML = '';
+  for (let i = 0; i < tileCount; i++) {
+    const div = document.createElement('div');
+    div.className = 'tile empty';
+    div.id = 'tile-' + i;
+    div.textContent = terrainIcons[i % terrainIcons.length];
+    grid.appendChild(div);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// GAME LOOP
+// ═══════════════════════════════════════════════
+
+function tick() {
+  G.tick++;
+
+  // Seasons & years
+  const seasonTick = 30;
+  if (G.tick % seasonTick === 0) {
+    G.seasonIdx = (G.seasonIdx + 1) % 4;
+    if (G.seasonIdx === 0) {
+      G.year++;
+      checkMilestones();
+    }
+  }
+
+  // Expire effects
+  G.effects = G.effects.filter(e => G.tick < e.until);
+
+  // Production
+  const rates = calcRates();
+  for (const r of ['food','wood','stone','gold']) {
+    G.res[r] = Math.min(G.maxRes[r], Math.max(0, G.res[r] + rates[r]));
+  }
+
+  // Starvation
+  if (G.res.food <= 0 && rates.food < 0) {
+    if (G.tick % 3 === 0 && G.pop > 1) {
+      G.pop--;
+      G.idleWorkers = Math.min(G.idleWorkers, G.pop); // clamp
+      stripExcessWorkers();
+      addLog('⚰️ A citizen died of starvation!', 'bad');
+    }
+  }
+
+  // Population growth
+  const growCheck = 30;
+  if (G.tick % growCheck === 0) {
+    const surplus = rates.food;
+    if (surplus > 1.0 && G.pop < G.maxPop) {
+      const chance = G.mods.growBonus * (surplus > 4 ? 0.5 : 0.2);
+      if (Math.random() < chance) {
+        G.pop++;
+        G.idleWorkers++;
+        addLog('👶 A new citizen joined your settlement!', 'good');
+      }
+    }
+  }
+
+  // Age check
+  checkAge();
+
+  // Random events
+  G.nextEvent--;
+  if (G.nextEvent <= 0) {
+    triggerEvent();
+    G.nextEvent = 40 + Math.floor(Math.random() * 40);
+  }
+
+  render();
+}
+
+function toggleSpeed() {
+  G.fast = !G.fast;
+  clearInterval(loopId);
+  loopId = setInterval(tick, G.fast ? 250 : 1000);
+  const btn = document.getElementById('speed-btn');
+  btn.textContent = G.fast ? '⏸ Normal' : '▶▶ Fast';
+  btn.classList.toggle('fast', G.fast);
+}
+
+// ═══════════════════════════════════════════════
+// RATES
+// ═══════════════════════════════════════════════
+
+function calcRates() {
+  const rates = { food: 0, wood: 0, stone: 0, gold: 0 };
+
+  // Pop food consumption
+  rates.food -= G.pop * 0.35;
+
+  // Building production
+  const pb = 1 + G.mods.prodBonus;
+  for (const b of G.buildings) {
+    const def = BDEF[b.type];
+    if (!def.prod || b.workers === 0) continue;
+    for (const [r, amt] of Object.entries(def.prod)) {
+      let mult = G.mods[r+'Mult'] || 1;
+      rates[r] += b.workers * amt * mult * pb;
+    }
+  }
+
+  // Drought effect
+  const drought = G.effects.find(e => e.name === 'drought');
+  if (drought) rates.food *= 0.5;
+
+  return rates;
+}
+
+function calcRateDisplay() {
+  const r = calcRates();
+  return {
+    food:  +r.food.toFixed(1),
+    wood:  +r.wood.toFixed(1),
+    stone: +r.stone.toFixed(1),
+    gold:  +r.gold.toFixed(1),
+  };
+}
+
+// ═══════════════════════════════════════════════
+// BUILDING
+// ═══════════════════════════════════════════════
+
+function tryBuild(type) {
+  const def = BDEF[type];
+  if (!def) return;
+  if (def.minAge > G.age) return;
+  const count = G.builtCount[type] || 0;
+  if (count >= def.max) return;
+  for (const [r, amt] of Object.entries(def.cost)) {
+    if (G.res[r] < amt) { notify('Not enough ' + r + '!'); return; }
+  }
+  // Deduct
+  for (const [r, amt] of Object.entries(def.cost)) G.res[r] -= amt;
+
+  // Place building
+  const b = { id: G.buildings.length, type, workers: 0 };
+  G.buildings.push(b);
+  G.builtCount[type] = (G.builtCount[type] || 0) + 1;
+
+  // Apply instant effects
+  if (def.housing) G.maxPop += def.housing;
+  if (def.storage) {
+    for (const [r, amt] of Object.entries(def.storage)) G.maxRes[r] += amt;
+  }
+  if (def.prodBonus) G.mods.prodBonus += def.prodBonus;
+  if (def.growBonus) G.mods.growBonus *= def.growBonus;
+  if (def.victory) triggerVictory();
+
+  // Place on grid
+  placeTile(b);
+  addLog(`🏗️ Built ${def.name}!`, 'good');
+  render();
+}
+
+function placeTile(b) {
+  // Find next empty tile
+  for (let i = 0; i < tileCount; i++) {
+    const el = document.getElementById('tile-' + i);
+    if (el && el.classList.contains('empty')) {
+      el.classList.remove('empty');
+      el.classList.add('built');
+      el.dataset.bid = b.id;
+      el.onclick = () => switchTab('workers');
+      renderTile(el, b);
+      return;
+    }
+  }
+}
+
+function renderTile(el, b) {
+  const def = BDEF[b.type];
+  el.innerHTML = def.icon;
+  if (def.maxW > 0) {
+    const badge = document.createElement('span');
+    badge.className = 'workers-badge';
+    badge.textContent = b.workers > 0 ? '👷'.repeat(Math.min(b.workers, 3)) : '';
+    el.appendChild(badge);
+  }
+  el.title = def.name + (def.maxW > 0 ? ` (${b.workers}/${def.maxW + (def.id==='farm'?G.mods.farmBonus:0)} workers)` : '');
+}
+
+function addWorker(bid) {
+  const b = G.buildings[bid];
+  if (!b) return;
+  const def = BDEF[b.type];
+  const maxW = def.maxW + (b.type === 'farm' ? G.mods.farmBonus : 0);
+  if (b.workers >= maxW) return;
+  if (G.idleWorkers <= 0) return;
+  b.workers++;
+  G.idleWorkers--;
+  refreshTiles();
+  renderWorkers();
+}
+
+function removeWorker(bid) {
+  const b = G.buildings[bid];
+  if (!b || b.workers <= 0) return;
+  b.workers--;
+  G.idleWorkers++;
+  refreshTiles();
+  renderWorkers();
+}
+
+function stripExcessWorkers() {
+  // Called when pop decreases
+  let toRemove = -G.idleWorkers;
+  if (toRemove <= 0) return;
+  for (const b of G.buildings) {
+    if (toRemove <= 0) break;
+    const remove = Math.min(b.workers, toRemove);
+    b.workers -= remove;
+    toRemove -= remove;
+  }
+  G.idleWorkers = Math.max(0, G.idleWorkers);
+}
+
+// ═══════════════════════════════════════════════
+// RESEARCH
+// ═══════════════════════════════════════════════
+
+function tryResearch(id) {
+  const def = TDEF[id];
+  if (!def || G.techs.has(id)) return;
+  if (def.needLib && !(G.builtCount['library'] > 0)) { notify('Requires a Library!'); return; }
+  for (const req of def.req) {
+    if (!G.techs.has(req)) { notify('Requires ' + TDEF[req].name + ' first!'); return; }
+  }
+  for (const [r, amt] of Object.entries(def.cost)) {
+    if (G.res[r] < amt) { notify('Not enough ' + r + '!'); return; }
+  }
+  for (const [r, amt] of Object.entries(def.cost)) G.res[r] -= amt;
+  G.techs.add(id);
+  applyTech(def);
+  addLog(`📜 Researched ${def.name}!`, 'mile');
+  render();
+}
+
+function applyTech(def) {
+  if (def.effect === 'foodMult')  G.mods.foodMult  *= def.val;
+  if (def.effect === 'woodMult')  G.mods.woodMult  *= def.val;
+  if (def.effect === 'stoneMult') G.mods.stoneMult *= def.val;
+  if (def.effect === 'goldMult')  G.mods.goldMult  *= def.val;
+  if (def.effect === 'farmBonus') G.mods.farmBonus += def.val;
+  if (def.effect === 'advanceAge') {
+    if (def.val > G.age) {
+      G.age = def.val;
+      addLog(`🌟 Your civilisation has entered the ${AGE_NAMES[G.age]}!`, 'mile');
+    }
+  }
+  if (def.effect === 'allProd') {
+    G.mods.foodMult *= 1.25; G.mods.woodMult *= 1.25;
+    G.mods.stoneMult *= 1.25; G.mods.goldMult *= 1.25;
+  }
+}
+
+// ═══════════════════════════════════════════════
+// MARKET
+// ═══════════════════════════════════════════════
+
+function trade(sellRes, buyRes) {
+  if (!(G.builtCount['market'] > 0)) { notify('Build a Market first!'); return; }
+  const sellAmt = 50;
+  const buyAmt = 40;
+  if (G.res[sellRes] < sellAmt) { notify('Not enough ' + sellRes + '!'); return; }
+  G.res[sellRes] -= sellAmt;
+  G.res[buyRes] = Math.min(G.maxRes[buyRes], G.res[buyRes] + buyAmt);
+  addLog(`💱 Traded ${sellAmt} ${sellRes} for ${buyAmt} ${buyRes}.`, 'info');
+  render();
+}
+
+// ═══════════════════════════════════════════════
+// EVENTS
+// ═══════════════════════════════════════════════
+
+function triggerEvent() {
+  const total = EVENTS.reduce((s, e) => s + e.w, 0);
+  let rnd = Math.random() * total;
+  for (const e of EVENTS) {
+    rnd -= e.w;
+    if (rnd <= 0) { e.fn(); return; }
+  }
+  EVENTS[0].fn();
+}
+
+function evGoodHarvest() {
+  const amt = 50 + Math.floor(Math.random() * 80);
+  G.res.food = Math.min(G.maxRes.food, G.res.food + amt);
+  addLog(`🌤️ A bountiful harvest! +${amt} food.`, 'good');
+  notify('🌤️ Bountiful Harvest!\n+' + amt + ' food');
+}
+
+function evDrought() {
+  if (G.techs.has('irrigation')) { addLog('🌧️ Drought began but irrigation saved your crops!', 'info'); return; }
+  const dur = 40;
+  G.effects.push({ name:'drought', until: G.tick + dur });
+  addLog('☀️ A drought has struck! Food production halved for ' + dur + ' seconds.', 'bad');
+  notify('☀️ Drought!\nFood production halved for ' + dur + 's');
+}
+
+function evMigration() {
+  if (G.pop >= G.maxPop) { addLog('👥 Migrants arrived but found no housing.', 'plain'); return; }
+  const gain = Math.min(3, G.maxPop - G.pop);
+  G.pop += gain;
+  G.idleWorkers += gain;
+  addLog(`👥 ${gain} migrants settled in ${G.cityName}!`, 'good');
+  notify(`👥 ${gain} Migrants Arrived!`);
+}
+
+function evPlague() {
+  if (G.builtCount['barracks'] > 0) { addLog('🏥 Plague outbreak contained by your guards.', 'info'); return; }
+  const loss = Math.min(3, G.pop - 1);
+  if (loss <= 0) return;
+  G.pop -= loss;
+  G.idleWorkers = Math.max(0, G.idleWorkers - loss);
+  stripExcessWorkers();
+  addLog(`💀 Plague! Lost ${loss} citizens.`, 'bad');
+  notify('💀 Plague Outbreak!\nLost ' + loss + ' citizens');
+}
+
+function evMerchant() {
+  if (!(G.builtCount['market'] > 0)) {
+    const rnd = ['wood','stone','gold'][Math.floor(Math.random()*3)];
+    const amt = 30;
+    G.res[rnd] = Math.min(G.maxRes[rnd], G.res[rnd] + amt);
+    addLog(`🚶 A wandering merchant gifted you ${amt} ${rnd}.`, 'good');
+    return;
+  }
+  const amt = 60;
+  G.res.gold = Math.min(G.maxRes.gold, G.res.gold + amt);
+  addLog(`🧑‍💼 Merchants visited your market! +${amt} gold.`, 'good');
+  notify('🧑‍💼 Merchants!\n+' + amt + ' gold from your market');
+}
+
+function evRaid() {
+  const hasWalls = G.builtCount['walls'] > 0;
+  const hasBarracks = G.builtCount['barracks'] > 0;
+  if (hasWalls) { addLog('🛡️ Raiders attacked but were repelled by your walls!', 'info'); return; }
+  const reduction = hasBarracks ? 0.4 : 1;
+  const foodLoss = Math.floor(reduction * (30 + Math.random() * 50));
+  const woodLoss = Math.floor(reduction * (20 + Math.random() * 30));
+  const stoneLoss = Math.floor(reduction * (Math.random() * 20));
+  G.res.food  = Math.max(0, G.res.food  - foodLoss);
+  G.res.wood  = Math.max(0, G.res.wood  - woodLoss);
+  G.res.stone = Math.max(0, G.res.stone - stoneLoss);
+  addLog(`⚔️ Raiders attacked! Lost ${foodLoss} food, ${woodLoss} wood, ${stoneLoss} stone.`, 'bad');
+  notify('⚔️ Raid!\nLost ' + foodLoss + ' food, ' + woodLoss + ' wood, ' + stoneLoss + ' stone' + (hasBarracks ? '\n(Barracks reduced damage)' : ''));
+}
+
+function evDiscovery() {
+  const res = ['wood','stone','gold'][Math.floor(Math.random()*3)];
+  const amt = 30 + Math.floor(Math.random() * 50);
+  G.res[res] = Math.min(G.maxRes[res], G.res[res] + amt);
+  addLog(`✨ Your scouts discovered a cache of ${amt} ${res}!`, 'good');
+  notify('✨ Discovery!\n+' + amt + ' ' + res);
+}
+
+function evStorm() {
+  const hasWalls = G.builtCount['walls'] > 0;
+  if (hasWalls) { addLog('⛈️ A storm hit but your walls held firm.', 'info'); return; }
+  const loss = Math.floor(20 + Math.random() * 30);
+  G.res.wood = Math.max(0, G.res.wood - loss);
+  addLog(`⛈️ A storm damaged your lumber! Lost ${loss} wood.`, 'bad');
+  notify('⛈️ Storm!\nLost ' + loss + ' wood');
+}
+
+// ═══════════════════════════════════════════════
+// AGE / MILESTONES
+// ═══════════════════════════════════════════════
+
+function checkAge() {
+  // Auto-advance to Bronze Age at pop 15 or having a library
+  if (G.age === 0 && (G.pop >= 20 || G.builtCount['library'] > 0)) {
+    G.age = 1;
+    addLog('🌟 Your settlement has grown into the Bronze Age!', 'mile');
+    notify('🌟 Bronze Age!\nNew buildings unlocked.');
+  }
+}
+
+function checkMilestones() {
+  if (G.year === 5)  addLog('🏕️ 5 years old — your people are growing stronger.', 'mile');
+  if (G.year === 10) addLog('🏘️ A decade of progress! Your town is thriving.', 'mile');
+  if (G.year === 25) addLog('🏰 25 years — legends will tell of your rule.', 'mile');
+}
+
+function triggerVictory() {
+  addLog('👑 THE CASTLE IS BUILT! YOUR CIVILISATION IS COMPLETE!', 'mile');
+  setTimeout(() => {
+    notify('👑 VICTORY!\n\nYou have built a Castle!\nYour civilisation stands the test of time.\n\nYear ' + G.year + ' · ' + G.cityName);
+  }, 500);
+}
+
+// ═══════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════
+
+function render() {
+  renderTop();
+  if (activeTab === 'build')    renderBuild();
+  if (activeTab === 'workers')  renderWorkers();
+  if (activeTab === 'research') renderResearch();
+  if (activeTab === 'market')   renderMarket();
+}
+
+function renderTop() {
+  const rates = calcRateDisplay();
+  const RES = ['food','wood','stone','gold'];
+  const icons = { food:'🌾', wood:'🪵', stone:'🪨', gold:'💰' };
+
+  for (const r of RES) {
+    document.getElementById('v-'+r).textContent = Math.floor(G.res[r]);
+    const rEl = document.getElementById('rt-'+r);
+    const rate = rates[r];
+    rEl.textContent = (rate >= 0 ? '+' : '') + rate + '/s';
+    rEl.className = 'res-rate ' + (rate > 0 ? 'pos' : rate < 0 ? 'neg' : 'zer');
+  }
+
+  document.getElementById('pop-label').textContent = `👥 ${G.pop} / ${G.maxPop}`;
+  document.getElementById('pop-bar').style.width = Math.min(100, G.pop / G.maxPop * 100) + '%';
+  document.getElementById('pop-unassigned').textContent = G.idleWorkers + ' idle workers';
+  document.getElementById('age-badge').textContent = AGE_NAMES[G.age];
+  document.getElementById('season-year').textContent = SEASONS[G.seasonIdx] + ' · Year ' + G.year;
+  document.getElementById('city-name').textContent = '🏕️ ' + G.cityName;
+}
+
+function renderBuild() {
+  const panel = document.getElementById('p-build');
+  let html = '';
+
+  for (const [type, def] of Object.entries(BDEF)) {
+    const count = G.builtCount[type] || 0;
+    const locked = def.minAge > G.age;
+    const maxed = count >= def.max;
+    let cantAfford = false;
+    let costHtml = '';
+
+    for (const [r, amt] of Object.entries(def.cost)) {
+      const ok = G.res[r] >= amt;
+      if (!ok) cantAfford = true;
+      const emoji = {food:'🌾',wood:'🪵',stone:'🪨',gold:'💰'}[r];
+      costHtml += `<span class="cost ${ok?'ok':'no'}">${emoji}${amt}</span>`;
+    }
+
+    let cls = 'bcard';
+    if (locked) cls += ' locked';
+    else if (maxed || cantAfford) cls += ' cant';
+
+    const clickable = !locked && !maxed;
+    html += `<div class="${cls}" ${clickable ? `onclick="tryBuild('${type}')"` : ''}>
+      <div class="bcard-top">
+        <span class="bcard-icon">${def.icon}</span>
+        <span class="bcard-name">${def.name}</span>
+        <span class="bcard-count">${count}/${def.max}</span>
+      </div>
+      <div class="bcard-desc">${def.desc}</div>`;
+
+    if (locked) {
+      html += `<div class="bcard-locked-msg">🔒 Requires ${AGE_NAMES[def.minAge]}</div>`;
+    } else if (maxed) {
+      html += `<div class="bcard-locked-msg">✅ Maximum built</div>`;
+    } else {
+      html += `<div class="bcard-costs">${costHtml}</div>`;
+    }
+    html += '</div>';
+  }
+  panel.innerHTML = html;
+}
+
+function renderWorkers() {
+  const panel = document.getElementById('p-workers');
+  const workBuildings = G.buildings.filter(b => BDEF[b.type].maxW > 0);
+
+  let html = `<div id="unassigned-display">👷 ${G.idleWorkers} idle worker${G.idleWorkers !== 1 ? 's' : ''}</div>`;
+
+  if (workBuildings.length === 0) {
+    html += '<div style="font-size:11px;color:#7a6a4a;text-align:center;margin-top:20px">Build farms, mills, or quarries<br>to assign workers.</div>';
+  }
+
+  for (const b of workBuildings) {
+    const def = BDEF[b.type];
+    const maxW = def.maxW + (b.type === 'farm' ? G.mods.farmBonus : 0);
+    let prodStr = '';
+    for (const [r, amt] of Object.entries(def.prod)) {
+      const emoji = {food:'🌾',wood:'🪵',stone:'🪨',gold:'💰'}[r];
+      const total = +(b.workers * amt * (G.mods[r+'Mult']||1) * (1+G.mods.prodBonus)).toFixed(1);
+      prodStr += `${emoji}+${total}/s `;
+    }
+    html += `<div class="wcard">
+      <div class="wcard-top">
+        <span class="wcard-icon">${def.icon}</span>
+        <span class="wcard-name">${def.name}</span>
+        ${prodStr ? `<span class="wcard-prod">${prodStr.trim()}</span>` : ''}
+      </div>
+      <div class="wcard-controls">
+        <button class="wbtn" onclick="removeWorker(${b.id})" ${b.workers<=0?'disabled':''}>−</button>
+        <span class="wcnt">${b.workers}</span>
+        <button class="wbtn" onclick="addWorker(${b.id})" ${b.workers>=maxW||G.idleWorkers<=0?'disabled':''}>+</button>
+        <span class="wmax">/ ${maxW} max</span>
+      </div>
+    </div>`;
+  }
+  panel.innerHTML = html;
+}
+
+function renderResearch() {
+  const panel = document.getElementById('p-research');
+  const hasLib = (G.builtCount['library'] || 0) > 0;
+  let html = '';
+
+  if (!hasLib) {
+    html = '<div style="font-size:11px;color:#7a6a4a;text-align:center;margin-top:20px">Build a Library to<br>unlock research.</div>';
+    panel.innerHTML = html;
+    return;
+  }
+
+  for (const [id, def] of Object.entries(TDEF)) {
+    const done = G.techs.has(id);
+    const reqsMet = def.req.every(r => G.techs.has(r));
+    const locked = !reqsMet;
+    let cantAfford = false;
+    let costHtml = '';
+
+    for (const [r, amt] of Object.entries(def.cost)) {
+      const ok = G.res[r] >= amt;
+      if (!ok) cantAfford = true;
+      const emoji = {food:'🌾',wood:'🪵',stone:'🪨',gold:'💰'}[r];
+      costHtml += `<span class="cost ${ok?'ok':'no'}">${emoji}${amt}</span>`;
+    }
+
+    let cls = 'tcard';
+    if (done) cls += ' done';
+    else if (locked) cls += ' locked';
+
+    const clickable = !done && !locked;
+    html += `<div class="${cls}" ${clickable ? `onclick="tryResearch('${id}')"` : ''}>
+      <div class="tcard-top">
+        <span class="tcard-icon">${def.icon}</span>
+        <span class="tcard-name">${def.name}</span>
+        ${done ? '<span class="tcard-done">✅ Researched</span>' : ''}
+      </div>
+      <div class="tcard-desc">${def.desc}</div>`;
+
+    if (!done) {
+      if (locked) {
+        const missing = def.req.filter(r => !G.techs.has(r)).map(r => TDEF[r].name).join(', ');
+        html += `<div class="tcard-req">🔒 Requires: ${missing}</div>`;
+      } else {
+        html += `<div class="bcard-costs">${costHtml}</div>`;
+      }
+    }
+    html += '</div>';
+  }
+  panel.innerHTML = html;
+}
+
+function renderMarket() {
+  const panel = document.getElementById('p-market');
+  const hasMarket = (G.builtCount['market'] || 0) > 0;
+
+  if (!hasMarket) {
+    panel.innerHTML = '<div style="font-size:11px;color:#7a6a4a;text-align:center;margin-top:20px">Build a Market to<br>enable trading.</div>';
+    return;
+  }
+
+  const RES = ['food','wood','stone','gold'];
+  const emoji = {food:'🌾',wood:'🪵',stone:'🪨',gold:'💰'};
+  let html = '<div style="font-size:11px;color:#7a6a4a;margin-bottom:10px">Trade 50 of one resource for 40 of another:</div>';
+
+  for (const sell of RES) {
+    for (const buy of RES) {
+      if (sell === buy) continue;
+      html += `<div class="mrow">
+        <span class="mrow-label">${emoji[sell]}50 → ${emoji[buy]}40</span>
+        <button class="mbtn" onclick="trade('${sell}','${buy}')" ${G.res[sell]<50?'disabled':''}>Trade</button>
+      </div>`;
+    }
+  }
+  panel.innerHTML = html;
+}
+
+function refreshTiles() {
+  for (const b of G.buildings) {
+    // find tile with this building id
+    for (let i = 0; i < tileCount; i++) {
+      const el = document.getElementById('tile-' + i);
+      if (el && el.dataset.bid == b.id) {
+        renderTile(el, b);
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════
+// LOG & NOTIFY
+// ═══════════════════════════════════════════════
+
+function addLog(msg, type='plain') {
+  G.log.unshift({ msg, type });
+  if (G.log.length > 60) G.log.pop();
+  const entries = document.getElementById('log-entries');
+  if (!entries) return;
+  entries.innerHTML = G.log.map(e => `<div class="log-entry ${e.type}">${e.msg}</div>`).join('');
+}
+
+let notifTimer = null;
+function notify(msg) {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.classList.add('show');
+  if (notifTimer) clearTimeout(notifTimer);
+  notifTimer = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+// ═══════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════
+
+function switchTab(name) {
+  activeTab = name;
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const names = ['build','workers','research','market','log'];
+    t.classList.toggle('on', names[i] === name);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
+  document.getElementById('p-'+name).classList.add('on');
+  render();
+}
+
+// ═══════════════════════════════════════════════
+// START
+// ═══════════════════════════════════════════════
+
+addLog('⚔️ Your people are hungry. Build a Farm — fast.', 'mile');
+addLog('⚠️ Each citizen eats 0.35 food/sec. Starvation kills.', 'bad');
+addLog('💡 Assign workers immediately after building.', 'info');
+init();
+</script>
+</body>
+</html>

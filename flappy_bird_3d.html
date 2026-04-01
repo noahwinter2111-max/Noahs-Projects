@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>3D Flappy Bird</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #87CEEB; font-family: Arial, sans-serif; }
+
+    #score {
+      position: absolute;
+      top: 20px;
+      width: 100%;
+      text-align: center;
+      color: white;
+      font-size: 64px;
+      font-weight: 900;
+      text-shadow: 3px 3px 0 #333, -2px -2px 0 #333, 2px -2px 0 #333, -2px 2px 0 #333;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.42);
+      z-index: 20;
+    }
+    #overlay.hidden { display: none; }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.13);
+      border: 3px solid rgba(255, 255, 255, 0.45);
+      border-radius: 24px;
+      padding: 50px 70px;
+      text-align: center;
+      backdrop-filter: blur(8px);
+    }
+    .panel h1 {
+      color: #FFE44D;
+      font-size: 64px;
+      font-weight: 900;
+      text-shadow: 4px 4px 0 #9A6B00;
+      margin-bottom: 12px;
+    }
+    .panel .sub {
+      color: #eee;
+      font-size: 20px;
+      margin-bottom: 30px;
+    }
+    .panel .prompt {
+      color: #FFE44D;
+      font-size: 22px;
+      font-weight: bold;
+      animation: blink 1.1s ease-in-out infinite;
+    }
+    .panel .result {
+      color: white;
+      font-size: 32px;
+      margin: 10px 0;
+    }
+    .panel .best {
+      color: #FFE44D;
+      font-size: 20px;
+      margin-bottom: 22px;
+    }
+    .hidden { display: none !important; }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.25; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="score">0</div>
+
+<div id="overlay">
+  <div class="panel" id="startPanel">
+    <h1>Flappy Bird 3D</h1>
+    <p class="sub">Navigate through the pipes!</p>
+    <p class="prompt">Click or press SPACE to flap</p>
+  </div>
+  <div class="panel hidden" id="diePanel">
+    <h1>Game Over!</h1>
+    <p class="result">Score: <span id="finalScore">0</span></p>
+    <p class="best">Best: <span id="bestScore">0</span></p>
+    <p class="prompt">Click or press SPACE to retry</p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+
+// ── Constants ─────────────────────────────────────────────────────────────
+const GRAVITY    = -0.020;
+const FLAP       =  0.30;
+const PIPE_SPEED =  0.08;
+const PIPE_GAP   =  6.0;   // vertical gap size
+const PIPE_W     =  1.6;
+const PIPE_D     =  1.6;
+const SPAWN_X    =  18;
+const DESPAWN_X  = -16;
+const GROUND_Y   = -7;
+const CEIL_Y     =  7.5;
+const BIRD_X     = -2;
+const BIRD_R     =  0.45;
+const SPAWN_INT  =  2.8;   // seconds between pipe spawns
+
+// ── Renderer ──────────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+// ── Scene & Camera ────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB);
+scene.fog = new THREE.Fog(0x87CEEB, 28, 70);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(0, 0, 16);
+camera.lookAt(0, 0, 0);
+
+// ── Lighting ──────────────────────────────────────────────────────────────
+scene.add(new THREE.HemisphereLight(0xB0D8F0, 0x7AC142, 0.75));
+
+const sunLight = new THREE.DirectionalLight(0xFFF6E0, 1.1);
+sunLight.position.set(8, 18, 10);
+sunLight.castShadow = true;
+sunLight.shadow.camera.left = sunLight.shadow.camera.bottom = -22;
+sunLight.shadow.camera.right = sunLight.shadow.camera.top  =  22;
+scene.add(sunLight);
+
+// ── Sun disc ──────────────────────────────────────────────────────────────
+{
+  const disc = new THREE.Mesh(
+    new THREE.CircleGeometry(2.8, 32),
+    new THREE.MeshBasicMaterial({ color: 0xFFFF99 })
+  );
+  disc.position.set(7, 6, -18);
+  scene.add(disc);
+
+  // Glow ring
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(2.8, 4.2, 32),
+    new THREE.MeshBasicMaterial({ color: 0xFFFF99, transparent: true, opacity: 0.25, side: THREE.DoubleSide })
+  );
+  ring.position.set(7, 6, -18.1);
+  scene.add(ring);
+}
+
+// ── Ground ────────────────────────────────────────────────────────────────
+{
+  const dirt = new THREE.Mesh(
+    new THREE.BoxGeometry(300, 5, 12),
+    new THREE.MeshLambertMaterial({ color: 0xC8A96E })
+  );
+  dirt.position.y = GROUND_Y - 2.5;
+  dirt.receiveShadow = true;
+  scene.add(dirt);
+
+  const grass = new THREE.Mesh(
+    new THREE.BoxGeometry(300, 0.7, 12),
+    new THREE.MeshLambertMaterial({ color: 0x4CAF50 })
+  );
+  grass.position.y = GROUND_Y;
+  grass.receiveShadow = true;
+  scene.add(grass);
+}
+
+// ── Bird ──────────────────────────────────────────────────────────────────
+const bird = new THREE.Group();
+bird.position.set(BIRD_X, 0, 0);
+scene.add(bird);
+
+// Body
+const bodyMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(0.5, 20, 14),
+  new THREE.MeshLambertMaterial({ color: 0xFFCC00 })
+);
+bodyMesh.scale.set(1.12, 1.0, 1.0);
+bodyMesh.castShadow = true;
+bird.add(bodyMesh);
+
+// Wings
+const wingMat = new THREE.MeshLambertMaterial({ color: 0xFF9800 });
+const wingGeo = new THREE.BoxGeometry(0.55, 0.18, 0.52);
+
+const wingL = new THREE.Mesh(wingGeo, wingMat);
+wingL.position.set(-0.46, 0, 0.1);
+wingL.castShadow = true;
+bird.add(wingL);
+
+const wingR = new THREE.Mesh(wingGeo, wingMat);
+wingR.position.set(0.46, 0, -0.1);
+wingR.castShadow = true;
+bird.add(wingR);
+
+// Tail feathers
+const tailGeo = new THREE.BoxGeometry(0.4, 0.12, 0.3);
+const tailMat = new THREE.MeshLambertMaterial({ color: 0xFF6F00 });
+const tail = new THREE.Mesh(tailGeo, tailMat);
+tail.position.set(-0.58, -0.1, 0);
+tail.rotation.z = 0.3;
+bird.add(tail);
+
+// Eye white
+const eyeW = new THREE.Mesh(
+  new THREE.SphereGeometry(0.14, 10, 10),
+  new THREE.MeshLambertMaterial({ color: 0xFFFFFF })
+);
+eyeW.position.set(0.34, 0.17, 0.38);
+bird.add(eyeW);
+
+// Pupil
+const eyeP = new THREE.Mesh(
+  new THREE.SphereGeometry(0.075, 8, 8),
+  new THREE.MeshLambertMaterial({ color: 0x111111 })
+);
+eyeP.position.set(0.39, 0.17, 0.44);
+bird.add(eyeP);
+
+// Beak
+const beak = new THREE.Mesh(
+  new THREE.ConeGeometry(0.09, 0.28, 6),
+  new THREE.MeshLambertMaterial({ color: 0xFF6600 })
+);
+beak.rotation.z = -Math.PI / 2;
+beak.position.set(0.58, 0.02, 0.22);
+bird.add(beak);
+
+// ── Clouds ────────────────────────────────────────────────────────────────
+const cloudMat = new THREE.MeshLambertMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.9 });
+const cloudData = [];
+
+function makeCloud(x, y, z, sc) {
+  const g = new THREE.Group();
+  const bumps = [
+    [0, 0, 0, 1.1],
+    [0.95, 0.22, 0, 0.82],
+    [-0.85, 0.12, 0, 0.78],
+    [0.38, 0.58, 0, 0.68],
+    [-0.2, 0.48, 0, 0.6],
+  ];
+  bumps.forEach(([bx, by, bz, r]) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 6), cloudMat);
+    m.position.set(bx, by, bz);
+    g.add(m);
+  });
+  g.position.set(x, y, z);
+  g.scale.setScalar(sc);
+  scene.add(g);
+  return g;
+}
+
+for (let i = 0; i < 7; i++) {
+  const g = makeCloud(
+    Math.random() * 55 - 10,
+    Math.random() * 5 + 0.5,
+    Math.random() * -8 - 2,
+    0.65 + Math.random() * 0.85
+  );
+  cloudData.push({ mesh: g, speed: 0.007 + Math.random() * 0.014 });
+}
+
+// ── Pipes ─────────────────────────────────────────────────────────────────
+const pipeList = [];
+const pipeMat  = new THREE.MeshLambertMaterial({ color: 0x3CB371 });
+const capMat   = new THREE.MeshLambertMaterial({ color: 0x2D8A56 });
+
+function spawnPipes() {
+  const gapCY = (Math.random() - 0.5) * 5.5;
+  const topY  = gapCY + PIPE_GAP / 2;   // bottom of top pipe
+  const botY  = gapCY - PIPE_GAP / 2;   // top of bottom pipe
+
+  const grp = new THREE.Group();
+  grp.position.x = SPAWN_X;
+  scene.add(grp);
+
+  // ── Bottom pipe ──
+  const botH = botY - (GROUND_Y - 4);
+  const botBody = new THREE.Mesh(new THREE.BoxGeometry(PIPE_W, botH, PIPE_D), pipeMat);
+  botBody.position.y = (GROUND_Y - 4 + botY) / 2;
+  botBody.castShadow = botBody.receiveShadow = true;
+  grp.add(botBody);
+
+  const botCap = new THREE.Mesh(new THREE.BoxGeometry(PIPE_W + 0.35, 0.55, PIPE_D + 0.35), capMat);
+  botCap.position.y = botY + 0.28;
+  botCap.castShadow = true;
+  grp.add(botCap);
+
+  // ── Top pipe ──
+  const topH = (CEIL_Y + 6) - topY;
+  const topBody = new THREE.Mesh(new THREE.BoxGeometry(PIPE_W, topH, PIPE_D), pipeMat);
+  topBody.position.y = (topY + CEIL_Y + 6) / 2;
+  topBody.castShadow = topBody.receiveShadow = true;
+  grp.add(topBody);
+
+  const topCap = new THREE.Mesh(new THREE.BoxGeometry(PIPE_W + 0.35, 0.55, PIPE_D + 0.35), capMat);
+  topCap.position.y = topY - 0.28;
+  topCap.castShadow = true;
+  grp.add(topCap);
+
+  pipeList.push({ mesh: grp, topY, botY, passed: false });
+}
+
+// ── State ─────────────────────────────────────────────────────────────────
+let state     = 'start';  // 'start' | 'play' | 'dead'
+let vel       = 0;
+let score     = 0;
+let best      = 0;
+let pipeTimer = 0;
+let wingPhase = 0;
+let wingSpeed = 0.04;
+let deathTimer = null;
+
+const scoreEl   = document.getElementById('score');
+const overlay   = document.getElementById('overlay');
+const startPnl  = document.getElementById('startPanel');
+const diePnl    = document.getElementById('diePanel');
+const finalEl   = document.getElementById('finalScore');
+const bestEl    = document.getElementById('bestScore');
+
+function showStart() {
+  overlay.classList.remove('hidden');
+  startPnl.classList.remove('hidden');
+  diePnl.classList.add('hidden');
+}
+
+function showDie() {
+  if (state !== 'dead') return;
+  finalEl.textContent = score;
+  bestEl.textContent  = best;
+  overlay.classList.remove('hidden');
+  startPnl.classList.add('hidden');
+  diePnl.classList.remove('hidden');
+}
+
+function resetGame() {
+  if (deathTimer) { clearTimeout(deathTimer); deathTimer = null; }
+  pipeList.forEach(p => scene.remove(p.mesh));
+  pipeList.length = 0;
+  pipeTimer = 0;
+  score = 0;
+  vel   = 0;
+  scoreEl.textContent = '0';
+  bird.position.set(BIRD_X, 0, 0);
+  bird.rotation.z = 0;
+  overlay.classList.add('hidden');
+  state = 'play';
+}
+
+function die() {
+  state = 'dead';
+  if (score > best) best = score;
+  deathTimer = setTimeout(showDie, 800);
+}
+
+function flap() {
+  if (state === 'start') {
+    resetGame();
+    vel = FLAP;
+    wingSpeed = 0.20;
+  } else if (state === 'play') {
+    vel = FLAP;
+    wingSpeed = 0.20;
+  } else if (state === 'dead') {
+    // only restart once overlay is visible (handled by overlay click)
+  }
+}
+
+// ── Input ─────────────────────────────────────────────────────────────────
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'ArrowUp') {
+    e.preventDefault();
+    flap();
+  }
+});
+
+// Separate handlers: general click flaps, overlay-while-dead restarts
+window.addEventListener('click', () => flap());
+
+overlay.addEventListener('click', () => {
+  if (state === 'dead') {
+    resetGame();
+    vel = FLAP;
+    wingSpeed = 0.20;
+  }
+});
+
+window.addEventListener('touchstart', e => { e.preventDefault(); flap(); }, { passive: false });
+
+// ── Resize ────────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ── Collision ─────────────────────────────────────────────────────────────
+function collides(p) {
+  const bx = bird.position.x;
+  const by = bird.position.y;
+  const px = p.mesh.position.x;
+  const halfW = (PIPE_W + 0.35) / 2 + BIRD_R;  // cap width + bird radius
+  if (Math.abs(bx - px) >= halfW) return false;
+  return (by + BIRD_R > p.topY) || (by - BIRD_R < p.botY);
+}
+
+// ── Main Loop ─────────────────────────────────────────────────────────────
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t  = clock.elapsedTime;
+
+  // Clouds always scroll
+  cloudData.forEach(c => {
+    c.mesh.position.x -= c.speed;
+    if (c.mesh.position.x < -30) {
+      c.mesh.position.x = 32;
+      c.mesh.position.y = Math.random() * 5 + 0.5;
+    }
+  });
+
+  // Wing flap animation (always)
+  wingPhase += wingSpeed;
+  wingSpeed = Math.max(0.04, wingSpeed - 0.003);
+  const wa = Math.sin(wingPhase) * 0.38;
+  wingL.rotation.z =  wa;
+  wingR.rotation.z = -wa;
+
+  // ── PLAY ──────────────────────────────────────────────────────────────
+  if (state === 'play') {
+    vel += GRAVITY;
+    bird.position.y += vel;
+
+    // Tilt to match velocity
+    const targetZ = THREE.MathUtils.clamp(vel * 2.5, -0.58, 0.45);
+    bird.rotation.z += (targetZ - bird.rotation.z) * 0.25;
+
+    // Spawn pipes
+    pipeTimer += dt;
+    if (pipeTimer >= SPAWN_INT || pipeList.length === 0) {
+      spawnPipes();
+      pipeTimer = 0;
+    }
+
+    // Move pipes & check collisions
+    for (let i = pipeList.length - 1; i >= 0; i--) {
+      const p = pipeList[i];
+      p.mesh.position.x -= PIPE_SPEED;
+
+      // Score: bird passed the pipe
+      if (!p.passed && p.mesh.position.x < BIRD_X) {
+        p.passed = true;
+        score++;
+        scoreEl.textContent = score;
+      }
+
+      // Remove off-screen
+      if (p.mesh.position.x < DESPAWN_X) {
+        scene.remove(p.mesh);
+        pipeList.splice(i, 1);
+        continue;
+      }
+
+      // Collision
+      if (collides(p)) { die(); return; }
+    }
+
+    // Ground / ceiling
+    if (bird.position.y - BIRD_R < GROUND_Y) {
+      bird.position.y = GROUND_Y + BIRD_R;
+      die();
+      return;
+    }
+    if (bird.position.y + BIRD_R > CEIL_Y) {
+      bird.position.y = CEIL_Y - BIRD_R;
+      vel = 0;
+    }
+
+    // Camera follows bird slightly
+    camera.position.y = bird.position.y * 0.05;
+
+  // ── START ─────────────────────────────────────────────────────────────
+  } else if (state === 'start') {
+    bird.position.y = Math.sin(t * 1.8) * 0.55;
+    bird.rotation.z = Math.sin(t * 1.8) * 0.12;
+    camera.position.y = 0;
+
+  // ── DEAD ──────────────────────────────────────────────────────────────
+  } else if (state === 'dead') {
+    if (bird.position.y - BIRD_R > GROUND_Y) {
+      vel += GRAVITY;
+      bird.position.y += vel;
+      bird.rotation.z -= 0.06;
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+showStart();
+animate();
+</script>
+</body>
+</html>

@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>√URVIVE</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Courier New', monospace; }
+  canvas { display: block; cursor: none; touch-action: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+let W, H;
+function resize() {
+  const s = Math.min(window.innerWidth, window.innerHeight, 700);
+  W = canvas.width = s;
+  H = canvas.height = s;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── Perfect squares ──────────────────────────────────────────────────────────
+const SQUARES = new Set([1,4,9,16,25,36,49,64,81,100]);
+
+// ── State ────────────────────────────────────────────────────────────────────
+let mode = 'menu'; // menu | playing | dead
+let score, lives, frame, combo, shakeAmt, shakeX, shakeY;
+let enemies, particles, floatTexts;
+let highScore = +localStorage.getItem('sqrtHS') || 0;
+
+const player = { x: 0, y: 0, trail: [] };
+let mx = 0, my = 0;
+
+// ── Audio ─────────────────────────────────────────────────────────────────────
+let audioCtx;
+function getCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function tone(freq, type, dur, vol, delay = 0) {
+  try {
+    const a = getCtx();
+    const o = a.createOscillator(), g = a.createGain();
+    o.connect(g); g.connect(a.destination);
+    o.type = type; o.frequency.value = freq;
+    const t = a.currentTime + delay;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.start(t); o.stop(t + dur + 0.05);
+  } catch(e) {}
+}
+function sfxCollect(n) {
+  tone(330 + n * 40, 'sine', 0.12, 0.25);
+  tone(660 + n * 80, 'sine', 0.08, 0.12);
+}
+function sfxHit() {
+  tone(180, 'sawtooth', 0.25, 0.35);
+  tone(90,  'square',   0.35, 0.2, 0.05);
+}
+function sfxDeath() {
+  for (let i = 0; i < 4; i++)
+    tone(220 - i*40, 'sawtooth', 0.4, 0.3, i * 0.12);
+}
+function sfxCombo(n) {
+  tone(550 + n * 60, 'triangle', 0.1, 0.2);
+  tone(1100 + n * 120, 'sine', 0.07, 0.1, 0.03);
+}
+function sfxMenu() { tone(440, 'sine', 0.08, 0.2); }
+
+// ── Particles ─────────────────────────────────────────────────────────────────
+function burst(x, y, color, n = 18, spd = 5) {
+  for (let i = 0; i < n; i++) {
+    const a = (Math.PI * 2 * i / n) + Math.random() * 0.5;
+    const s = spd * (0.5 + Math.random() * 0.8);
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      color, life: 1,
+      size: 2 + Math.random() * 4,
+      decay: 0.025 + Math.random() * 0.025
+    });
+  }
+}
+
+function floatText(x, y, text, color) {
+  floatTexts.push({ x, y, text, color, vy: -1.5, life: 1, decay: 0.018 });
+}
+
+function shake(amt) { shakeAmt = Math.max(shakeAmt, amt); }
+
+// ── Spawn ─────────────────────────────────────────────────────────────────────
+function spawnEnemy() {
+  const diff = Math.min(frame / 4200, 1);          // 0→1 over 70 sec
+  const maxVal = Math.floor(15 + diff * 85);        // 15→100
+
+  // ~38% chance to spawn a perfect square (player needs targets!)
+  let val;
+  if (Math.random() < 0.38) {
+    const pool = [1,4,9,16,25,36,49,64,81,100].filter(v => v <= maxVal);
+    val = pool[Math.floor(Math.random() * pool.length)];
+  } else {
+    do { val = 2 + Math.floor(Math.random() * (maxVal - 1)); }
+    while (SQUARES.has(val));
+  }
+  const isPerfect = SQUARES.has(val);
+
+  // Spawn from a random edge
+  const side = Math.floor(Math.random() * 4);
+  let x, y;
+  if (side === 0) { x = W * Math.random(); y = -35; }
+  else if (side === 1) { x = W + 35; y = H * Math.random(); }
+  else if (side === 2) { x = W * Math.random(); y = H + 35; }
+  else { x = -35; y = H * Math.random(); }
+
+  // Head toward player ± some spread
+  const tx = player.x + (Math.random() - 0.5) * 120;
+  const ty = player.y + (Math.random() - 0.5) * 120;
+  const dx = tx - x, dy = ty - y;
+  const mag = Math.sqrt(dx*dx + dy*dy) || 1;
+  const spd = (1.4 + diff * 2.2) * (isPerfect ? 0.85 : 1.1);
+
+  enemies.push({
+    x, y,
+    vx: dx/mag * spd, vy: dy/mag * spd,
+    val, isPerfect,
+    pulse: Math.random() * Math.PI * 2,
+    age: 0,
+    maxAge: 260 + Math.random() * 180,
+    hue: isPerfect ? 48 : 5 + Math.random() * 20,
+    size: isPerfect ? 26 : 18,
+  });
+}
+
+// ── Reset ─────────────────────────────────────────────────────────────────────
+function reset() {
+  score = 0; lives = 3; frame = 0; combo = 0;
+  shakeAmt = 0; shakeX = 0; shakeY = 0;
+  player.x = W/2; player.y = H/2;
+  player.trail = [];
+  mx = W/2; my = H/2;
+  enemies = []; particles = []; floatTexts = [];
+}
+
+// ── Input ─────────────────────────────────────────────────────────────────────
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  mx = (e.clientX - r.left) * (W / r.width);
+  my = (e.clientY - r.top)  * (H / r.height);
+});
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const r = canvas.getBoundingClientRect();
+  const t = e.touches[0];
+  mx = (t.clientX - r.left) * (W / r.width);
+  my = (t.clientY - r.top)  * (H / r.height);
+}, { passive: false });
+canvas.addEventListener('click', () => {
+  sfxMenu();
+  if (mode === 'menu' || mode === 'dead') {
+    reset();
+    mode = 'playing';
+  }
+});
+window.addEventListener('keydown', e => {
+  if ((e.key === ' ' || e.key === 'Enter') && mode !== 'playing') {
+    sfxMenu();
+    reset();
+    mode = 'playing';
+  }
+});
+
+// ── Update ────────────────────────────────────────────────────────────────────
+function update() {
+  frame++;
+
+  // Screen shake decay
+  if (shakeAmt > 0.2) {
+    shakeX = (Math.random() - 0.5) * shakeAmt;
+    shakeY = (Math.random() - 0.5) * shakeAmt;
+    shakeAmt *= 0.78;
+  } else { shakeX = shakeY = 0; shakeAmt = 0; }
+
+  if (mode !== 'playing') return;
+
+  // Score ticks up passively
+  score += 0.08 * (1 + combo * 0.15);
+
+  // Player follows mouse smoothly
+  player.x += (mx - player.x) * 0.18;
+  player.y += (my - player.y) * 0.18;
+  player.x = Math.max(14, Math.min(W - 14, player.x));
+  player.y = Math.max(14, Math.min(H - 14, player.y));
+
+  // Trail
+  player.trail.unshift({ x: player.x, y: player.y });
+  if (player.trail.length > 22) player.trail.pop();
+
+  // Spawn rate scales with time
+  const spawnInterval = Math.max(18, 70 - frame / 80);
+  if (frame % Math.round(spawnInterval) === 0) spawnEnemy();
+
+  // Update enemies
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    e.x += e.vx; e.y += e.vy; e.age++; e.pulse += 0.08;
+
+    // Off screen or aged out
+    if (e.age > e.maxAge || e.x < -60 || e.x > W+60 || e.y < -60 || e.y > H+60) {
+      if (e.isPerfect && e.age > e.maxAge) {
+        // missed a perfect square - visual only, no penalty
+        burst(e.x, e.y, 'rgba(255,200,0,0.5)', 6, 2);
+      }
+      enemies.splice(i, 1);
+      continue;
+    }
+
+    const dx = e.x - player.x, dy = e.y - player.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const hitR = 14 + (e.isPerfect ? 16 : 8);
+
+    if (dist < hitR) {
+      if (e.isPerfect) {
+        // COLLECT!
+        combo++;
+        const pts = Math.floor((10 + e.val) * (1 + combo * 0.2));
+        score += pts;
+        if (highScore && score > highScore) highScore = Math.floor(score);
+        burst(e.x, e.y, `hsl(48,100%,65%)`, 22, 5);
+        floatText(e.x, e.y - 20, `+${pts}`, '#ffe066');
+        if (combo >= 3) { sfxCombo(combo); floatText(e.x, e.y - 44, `${combo}x COMBO!`, '#ff0'); }
+        else sfxCollect(combo);
+        shake(combo >= 5 ? 8 : 3);
+        enemies.splice(i, 1);
+      } else {
+        // HIT!
+        combo = 0;
+        lives--;
+        burst(player.x, player.y, '#ff3333', 30, 7);
+        burst(e.x, e.y, `hsl(${e.hue},100%,60%)`, 12, 4);
+        sfxHit();
+        shake(18);
+        floatText(player.x, player.y - 30, lives > 0 ? '-1 LIFE' : 'DEAD', '#f33');
+        enemies.splice(i, 1);
+        if (lives <= 0) {
+          mode = 'dead';
+          if (Math.floor(score) > highScore) {
+            highScore = Math.floor(score);
+            localStorage.setItem('sqrtHS', highScore);
+          }
+          sfxDeath();
+          shake(35);
+        }
+      }
+    }
+  }
+
+  // Update particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= 0.92; p.vy *= 0.92;
+    p.life -= p.decay;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Update float texts
+  for (let i = floatTexts.length - 1; i >= 0; i--) {
+    const f = floatTexts[i];
+    f.y += f.vy; f.life -= f.decay;
+    if (f.life <= 0) floatTexts.splice(i, 1);
+  }
+}
+
+// ── Draw helpers ──────────────────────────────────────────────────────────────
+function glow(color, blur) { ctx.shadowColor = color; ctx.shadowBlur = blur; }
+function clearGlow() { ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; }
+
+function drawGrid() {
+  ctx.strokeStyle = 'rgba(80,80,200,0.06)';
+  ctx.lineWidth = 1;
+  const gs = 44;
+  for (let x = 0; x < W; x += gs) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y = 0; y < H; y += gs) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+}
+
+function drawEnemy(e) {
+  const pulse = 1 + Math.sin(e.pulse) * 0.12;
+  ctx.save();
+  ctx.translate(e.x, e.y);
+  if (e.isPerfect) {
+    // Outer glow ring
+    glow(`hsl(48,100%,65%)`, 30 + Math.sin(e.pulse) * 10);
+    ctx.strokeStyle = `hsl(48,100%,75%)`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, (e.size + 10) * pulse, 0, Math.PI * 2);
+    ctx.stroke();
+    // Fill
+    ctx.fillStyle = `hsl(48,100%,65%)`;
+    ctx.beginPath();
+    ctx.arc(0, 0, e.size * pulse, 0, Math.PI * 2);
+    ctx.fill();
+    // Number
+    clearGlow();
+    ctx.fillStyle = '#1a0';
+    ctx.font = `bold ${e.size}px Courier New`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(e.val, 0, 0);
+    // √ tag
+    glow('#0f0', 8);
+    ctx.fillStyle = '#0f0';
+    ctx.font = `bold 10px Courier New`;
+    ctx.fillText('√', e.size + 6, -e.size - 2);
+  } else {
+    glow(`hsl(${e.hue},100%,55%)`, 20);
+    ctx.fillStyle = `hsl(${e.hue},90%,55%)`;
+    const r = e.size * pulse;
+    ctx.beginPath();
+    ctx.moveTo(0, -r);
+    ctx.lineTo(r * 0.87, r * 0.5);
+    ctx.lineTo(-r * 0.87, r * 0.5);
+    ctx.closePath();
+    ctx.fill();
+    clearGlow();
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${e.size - 4}px Courier New`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(e.val, 0, 4);
+  }
+  clearGlow();
+  ctx.restore();
+}
+
+function drawPlayer() {
+  // Trail
+  for (let i = 0; i < player.trail.length; i++) {
+    const t = player.trail[i];
+    const a = (1 - i / player.trail.length) * 0.28;
+    const s = 14 * (1 - i / player.trail.length);
+    ctx.save();
+    ctx.globalAlpha = a;
+    glow('#00ffff', 8);
+    ctx.fillStyle = '#00ffff';
+    ctx.fillRect(t.x - s/2, t.y - s/2, s, s);
+    ctx.restore();
+  }
+  // Player square
+  ctx.save();
+  glow('#00ffff', 28 + Math.sin(frame * 0.1) * 6);
+  ctx.strokeStyle = '#00ffff';
+  ctx.lineWidth = 2.5;
+  const ps = 14;
+  ctx.strokeRect(player.x - ps, player.y - ps, ps * 2, ps * 2);
+  ctx.fillStyle = 'rgba(0,255,255,0.15)';
+  ctx.fillRect(player.x - ps, player.y - ps, ps * 2, ps * 2);
+  clearGlow();
+  // √ symbol on player
+  glow('#0ff', 12);
+  ctx.fillStyle = '#0ff';
+  ctx.font = 'bold 14px Courier New';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('√', player.x, player.y);
+  clearGlow();
+  ctx.restore();
+}
+
+function drawHUD() {
+  // Score
+  ctx.save();
+  glow('#fff', 8);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 26px Courier New';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(Math.floor(score), 16, 16);
+  clearGlow();
+  // Best
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.font = '12px Courier New';
+  ctx.fillText(`BEST ${highScore}`, 16, 48);
+  // Lives
+  for (let i = 0; i < 3; i++) {
+    const alive = i < lives;
+    ctx.save();
+    if (alive) glow('#0ff', 12);
+    ctx.strokeStyle = alive ? '#0ff' : 'rgba(0,255,255,0.2)';
+    ctx.lineWidth = alive ? 2 : 1;
+    ctx.strokeRect(W - 16 - (3-i)*26, 16, 18, 18);
+    if (alive) {
+      ctx.fillStyle = 'rgba(0,255,255,0.2)';
+      ctx.fillRect(W - 16 - (3-i)*26, 16, 18, 18);
+    }
+    clearGlow();
+    ctx.restore();
+  }
+  // Combo
+  if (combo >= 2) {
+    ctx.save();
+    const cc = `hsl(${48 + combo*8}, 100%, 65%)`;
+    glow(cc, 20);
+    ctx.fillStyle = cc;
+    ctx.font = `bold ${16 + combo}px Courier New`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`×${combo} COMBO`, W - 16, 16);
+    clearGlow();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.save();
+    ctx.globalAlpha = p.life;
+    glow(p.color, 10);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+    ctx.fill();
+    clearGlow();
+    ctx.restore();
+  }
+}
+
+function drawFloatTexts() {
+  for (const f of floatTexts) {
+    ctx.save();
+    ctx.globalAlpha = f.life;
+    glow(f.color, 14);
+    ctx.fillStyle = f.color;
+    ctx.font = 'bold 16px Courier New';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(f.text, f.x, f.y);
+    clearGlow();
+    ctx.restore();
+  }
+}
+
+function drawMenu() {
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.textAlign = 'center';
+  // Title
+  glow('#00ffff', 50);
+  ctx.fillStyle = '#00ffff';
+  ctx.font = `bold ${W > 500 ? 72 : 52}px Courier New`;
+  ctx.fillText('√URVIVE', W/2, H/2 - 100);
+  clearGlow();
+  // Subtitle
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.font = `${W > 500 ? 17 : 14}px Courier New`;
+  ctx.fillText('Numbers fly at you.', W/2, H/2 - 20);
+  ctx.fillStyle = '#ffe066';
+  ctx.fillText('⬤  GOLD circles = perfect squares  →  COLLECT', W/2, H/2 + 14);
+  ctx.fillStyle = '#ff5555';
+  ctx.fillText('▲  RED triangles = other numbers   →  DODGE', W/2, H/2 + 40);
+  // Best
+  if (highScore > 0) {
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '14px Courier New';
+    ctx.fillText(`BEST: ${highScore}`, W/2, H/2 + 85);
+  }
+  // CTA
+  ctx.save();
+  glow('#fff', 12);
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${18 + Math.sin(frame * 0.06) * 2}px Courier New`;
+  ctx.fillText('CLICK OR PRESS SPACE', W/2, H/2 + 130);
+  clearGlow();
+  ctx.restore();
+  ctx.restore();
+}
+
+function drawDead() {
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.textAlign = 'center';
+  glow('#ff3333', 40);
+  ctx.fillStyle = '#ff4444';
+  ctx.font = `bold ${W > 500 ? 64 : 48}px Courier New`;
+  ctx.fillText('DEAD', W/2, H/2 - 80);
+  clearGlow();
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold 36px Courier New`;
+  ctx.fillText(Math.floor(score), W/2, H/2 - 10);
+  const isNewBest = Math.floor(score) >= highScore && highScore > 0;
+  if (isNewBest) {
+    ctx.save();
+    glow('#ffe066', 20);
+    ctx.fillStyle = '#ffe066';
+    ctx.font = 'bold 20px Courier New';
+    ctx.fillText('✦ NEW BEST ✦', W/2, H/2 + 30);
+    clearGlow();
+    ctx.restore();
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.font = '14px Courier New';
+  ctx.fillText(`BEST: ${highScore}`, W/2, H/2 + (isNewBest ? 60 : 35));
+  ctx.save();
+  glow('#fff', 10);
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${16 + Math.sin(frame * 0.08) * 2}px Courier New`;
+  ctx.fillText('CLICK OR PRESS SPACE TO RETRY', W/2, H/2 + 100);
+  clearGlow();
+  ctx.restore();
+  ctx.restore();
+}
+
+// ── Draw ──────────────────────────────────────────────────────────────────────
+function draw() {
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
+
+  // Background
+  ctx.fillStyle = '#040414';
+  ctx.fillRect(-20, -20, W + 40, H + 40);
+  drawGrid();
+
+  if (mode === 'playing' || mode === 'dead') {
+    for (const e of enemies) drawEnemy(e);
+    drawPlayer();
+    drawParticles();
+    drawFloatTexts();
+    drawHUD();
+  }
+  if (mode === 'dead') drawDead();
+  if (mode === 'menu') {
+    for (const e of enemies) drawEnemy(e);
+    drawMenu();
+  }
+
+  ctx.restore();
+}
+
+// ── Loop ──────────────────────────────────────────────────────────────────────
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// Spawn some decorative enemies for menu
+reset();
+for (let i = 0; i < 6; i++) spawnEnemy();
+loop();
+</script>
+</body>
+</html>

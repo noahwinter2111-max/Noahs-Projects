@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>World Sandbox</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; user-select: none; }
+  canvas { display: block; }
+
+  #ui {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    z-index: 10;
+  }
+
+  .panel {
+    background: rgba(0,0,0,0.55);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 14px;
+    padding: 12px 16px;
+    backdrop-filter: blur(8px);
+    color: #fff;
+  }
+
+  .panel-title {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  .weather-btns {
+    display: flex;
+    gap: 8px;
+  }
+
+  .wb {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.06);
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #fff;
+    font-size: 11px;
+    min-width: 56px;
+  }
+  .wb .icon { font-size: 22px; }
+  .wb:hover { background: rgba(255,255,255,0.15); transform: translateY(-2px); }
+  .wb.active { background: rgba(255,255,255,0.22); border-color: rgba(255,255,255,0.5); box-shadow: 0 0 12px rgba(255,255,255,0.2); }
+
+  .sliders { display: flex; flex-direction: column; gap: 8px; min-width: 180px; }
+  .slider-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .slider-row label { width: 60px; color: rgba(255,255,255,0.7); font-size: 11px; }
+  .slider-row input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.2);
+    outline: none;
+  }
+  .slider-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+  }
+  .slider-row .val { width: 28px; text-align: right; font-size: 11px; color: rgba(255,255,255,0.6); }
+
+  #time-display {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 6px 16px;
+    color: rgba(255,255,255,0.8);
+    font-size: 13px;
+    letter-spacing: 1px;
+    backdrop-filter: blur(6px);
+    z-index: 10;
+  }
+
+  .toggle-row { display: flex; gap: 8px; }
+  .toggle-btn {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.06);
+    cursor: pointer;
+    color: #fff;
+    font-size: 11px;
+    transition: all 0.2s;
+  }
+  .toggle-btn:hover { background: rgba(255,255,255,0.15); }
+  .toggle-btn.active { background: rgba(255,200,50,0.25); border-color: rgba(255,200,50,0.5); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="time-display">🕐 12:00</div>
+
+<div id="ui">
+  <!-- Time & extras -->
+  <div class="panel">
+    <div class="panel-title">Controls</div>
+    <div class="toggle-row">
+      <div class="toggle-btn active" id="btn-time" onclick="toggleTime()">⏱ Auto Time</div>
+      <div class="toggle-btn" id="btn-fog" onclick="toggleFog()">🌫 Fog</div>
+      <div class="toggle-btn" id="btn-aurora" onclick="toggleAurora()">✨ Aurora</div>
+    </div>
+  </div>
+
+  <!-- Weather -->
+  <div class="panel">
+    <div class="panel-title">Weather</div>
+    <div class="weather-btns">
+      <div class="wb active" id="w-sunny" onclick="setWeather('sunny')"><span class="icon">☀️</span>Sunny</div>
+      <div class="wb" id="w-cloudy" onclick="setWeather('cloudy')"><span class="icon">⛅</span>Cloudy</div>
+      <div class="wb" id="w-rain" onclick="setWeather('rain')"><span class="icon">🌧️</span>Rain</div>
+      <div class="wb" id="w-storm" onclick="setWeather('storm')"><span class="icon">⛈️</span>Storm</div>
+      <div class="wb" id="w-snow" onclick="setWeather('snow')"><span class="icon">❄️</span>Snow</div>
+      <div class="wb" id="w-fog" onclick="setWeather('fog')"><span class="icon">🌫️</span>Fog</div>
+    </div>
+  </div>
+
+  <!-- Sliders -->
+  <div class="panel">
+    <div class="panel-title">Environment</div>
+    <div class="sliders">
+      <div class="slider-row">
+        <label>Wind</label>
+        <input type="range" id="sl-wind" min="-100" max="100" value="15" oninput="updateSlider('wind',this)">
+        <span class="val" id="v-wind">15</span>
+      </div>
+      <div class="slider-row">
+        <label>Intensity</label>
+        <input type="range" id="sl-intensity" min="0" max="100" value="50" oninput="updateSlider('intensity',this)">
+        <span class="val" id="v-intensity">50</span>
+      </div>
+      <div class="slider-row">
+        <label>Time</label>
+        <input type="range" id="sl-time" min="0" max="1440" value="720" oninput="updateSlider('time',this)">
+        <span class="val" id="v-time">12h</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  buildTerrain();
+  initRain(300);
+  initSnow(200);
+  initClouds();
+}
+window.addEventListener('resize', resize);
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const state = {
+  weather: 'sunny',
+  wind: 15,
+  intensity: 50,
+  timeOfDay: 720, // minutes 0-1440
+  autoTime: true,
+  fog: false,
+  aurora: false,
+};
+
+// Smooth transitions
+// No smooth transitions — everything reads directly from state.weather each frame
+
+// ── Terrain ───────────────────────────────────────────────────────────────────
+let terrain = [];
+let waterLine;
+
+function buildTerrain() {
+  terrain = [];
+  waterLine = H * 0.72;
+  const pts = 200;
+  // mountain silhouette
+  let y = H * 0.55;
+  for (let i = 0; i <= pts; i++) {
+    const x = (i / pts) * W;
+    y += (Math.random() - 0.48) * 28;
+    y = Math.max(H * 0.35, Math.min(H * 0.68, y));
+    terrain.push({ x, y });
+  }
+}
+
+// ── Particles ─────────────────────────────────────────────────────────────────
+let rainDrops = [];
+let snowFlakes = [];
+let clouds = [];
+let lightning = null;
+let lightningTimer = 0;
+
+function initRain(n) {
+  rainDrops = [];
+  for (let i = 0; i < n; i++) {
+    rainDrops.push(newRainDrop(true));
+  }
+}
+
+function newRainDrop(random = false) {
+  return {
+    x: Math.random() * W,
+    y: random ? Math.random() * H : -10,
+    len: 10 + Math.random() * 15,
+    speed: 12 + Math.random() * 8,
+    opacity: 0.3 + Math.random() * 0.5,
+  };
+}
+
+function initSnow(n) {
+  snowFlakes = [];
+  for (let i = 0; i < n; i++) {
+    snowFlakes.push(newSnowFlake(true));
+  }
+}
+
+function newSnowFlake(random = false) {
+  return {
+    x: Math.random() * W,
+    y: random ? Math.random() * H : -5,
+    r: 1.5 + Math.random() * 3,
+    speed: 1 + Math.random() * 2,
+    wobble: Math.random() * Math.PI * 2,
+    wobbleSpeed: 0.01 + Math.random() * 0.03,
+    opacity: 0.5 + Math.random() * 0.5,
+  };
+}
+
+function initClouds() {
+  clouds = [];
+  for (let i = 0; i < 8; i++) {
+    clouds.push(newCloud(true));
+  }
+}
+
+function newCloud(random = false) {
+  return {
+    x: random ? Math.random() * W : -300,
+    y: H * 0.05 + Math.random() * H * 0.28,
+    w: 120 + Math.random() * 200,
+    h: 40 + Math.random() * 60,
+    speed: 0.2 + Math.random() * 0.4,
+    opacity: 0.5 + Math.random() * 0.5,
+    puffs: Array.from({length: 5 + Math.floor(Math.random()*4)}, () => ({
+      dx: (Math.random() - 0.5) * 120,
+      dy: (Math.random() - 0.3) * 30,
+      r: 25 + Math.random() * 45,
+    })),
+  };
+}
+
+// particles initialized after resize() sets W/H
+
+// ── Aurora ────────────────────────────────────────────────────────────────────
+let auroraTime = 0;
+
+// ── Sky gradient helper ───────────────────────────────────────────────────────
+function skyColors(t) {
+  // t = minutes 0-1440
+  const norm = t / 1440;
+  // Key times: dawn=360, day=720, dusk=1080, night=0/1440
+  if (t < 60) return '#0a0a1e'; // deep night
+  if (t < 360) { // pre-dawn → dawn
+    const p = (t - 60) / 300;
+    return lerpColor('#0a0a1e', '#1a1035', p);
+  }
+  if (t < 420) { // dawn
+    const p = (t - 360) / 60;
+    return lerpColor('#1a1035', '#ff6b35', p);
+  }
+  if (t < 480) { // sunrise
+    const p = (t - 420) / 60;
+    return lerpColor('#ff6b35', '#87ceeb', p);
+  }
+  if (t < 1020) { // day
+    const p = (t - 480) / 540;
+    const midBlue = '#5aa8dc';
+    return p < 0.5 ? lerpColor('#87ceeb', midBlue, p*2) : lerpColor(midBlue, '#87ceeb', (p-0.5)*2);
+  }
+  if (t < 1080) { // pre-dusk
+    const p = (t - 1020) / 60;
+    return lerpColor('#87ceeb', '#ff6b35', p);
+  }
+  if (t < 1140) { // dusk
+    const p = (t - 1080) / 60;
+    return lerpColor('#ff6b35', '#2a1050', p);
+  }
+  { // night
+    const p = (t - 1140) / 300;
+    return lerpColor('#2a1050', '#0a0a1e', Math.min(p, 1));
+  }
+}
+
+function lerpColor(a, b, t) {
+  const ah = parseInt(a.replace('#',''), 16);
+  const bh = parseInt(b.replace('#',''), 16);
+  const ar = (ah >> 16) & 0xff, ag = (ah >> 8) & 0xff, ab = ah & 0xff;
+  const br = (bh >> 16) & 0xff, bg = (bh >> 8) & 0xff, bb = bh & 0xff;
+  const r = Math.round(ar + (br-ar)*t);
+  const g = Math.round(ag + (bg-ag)*t);
+  const bl = Math.round(ab + (bb-ab)*t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+function skyBrightness(t) {
+  if (t < 360) return 0.05;
+  if (t < 480) return 0.05 + (t-360)/120 * 0.95;
+  if (t < 1020) return 1.0;
+  if (t < 1140) return 1.0 - (t-1020)/120 * 0.95;
+  return 0.05;
+}
+
+// ── Stars ─────────────────────────────────────────────────────────────────────
+const stars = Array.from({length: 200}, () => ({
+  x: Math.random(),
+  y: Math.random() * 0.6,
+  r: 0.5 + Math.random() * 1.5,
+  twinkle: Math.random() * Math.PI * 2,
+}));
+
+// ── Sun & Moon ────────────────────────────────────────────────────────────────
+function getSunPos(t) {
+  // rises at 360, sets at 1080
+  const angle = ((t - 360) / 720) * Math.PI;
+  return {
+    x: W * 0.1 + W * 0.8 * ((t - 360) / 720),
+    y: H * 0.55 - Math.sin(angle) * H * 0.45,
+    visible: t > 340 && t < 1100,
+  };
+}
+
+function getMoonPos(t) {
+  const tMoon = t < 360 ? t + 1080 : t - 360;
+  const angle = ((tMoon - 360) / 720) * Math.PI;
+  return {
+    x: W * 0.1 + W * 0.8 * ((tMoon - 360) / 720),
+    y: H * 0.55 - Math.sin(angle) * H * 0.4,
+    visible: t < 380 || t > 1060,
+  };
+}
+
+// ── Draw functions ────────────────────────────────────────────────────────────
+function drawSky() {
+  const t = state.timeOfDay;
+  const topColor = skyColors(t);
+  let bottomColor = topColor;
+  // horizon glow near sunrise/sunset
+  if ((t > 340 && t < 480) || (t > 1020 && t < 1140)) {
+    bottomColor = '#ff9955';
+  }
+  const grad = ctx.createLinearGradient(0, 0, 0, H * 0.75);
+  grad.addColorStop(0, topColor);
+  grad.addColorStop(1, bottomColor);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawStars() {
+  const bright = skyBrightness(state.timeOfDay);
+  const alpha = Math.max(0, 1 - bright * 2);
+  if (alpha < 0.01) return;
+  stars.forEach(s => {
+    const twinkle = 0.5 + 0.5 * Math.sin(s.twinkle + Date.now() * 0.001);
+    ctx.beginPath();
+    ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${alpha * twinkle})`;
+    ctx.fill();
+  });
+}
+
+function drawSun() {
+  const pos = getSunPos(state.timeOfDay);
+  if (!pos.visible) return;
+  const t = state.timeOfDay;
+  const low = (t < 450 || t > 1050);
+  const color = low ? '#ff8844' : '#ffffa0';
+  const glowColor = low ? 'rgba(255,120,50,' : 'rgba(255,240,100,';
+
+  // glow
+  const gGrad = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 80);
+  gGrad.addColorStop(0, glowColor + '0.4)');
+  gGrad.addColorStop(1, glowColor + '0)');
+  ctx.fillStyle = gGrad;
+  ctx.fillRect(pos.x - 80, pos.y - 80, 160, 160);
+
+  // sun
+  ctx.beginPath();
+  ctx.arc(pos.x, pos.y, 22, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function drawMoon() {
+  const pos = getMoonPos(state.timeOfDay);
+  if (!pos.visible) return;
+  ctx.beginPath();
+  ctx.arc(pos.x, pos.y, 16, 0, Math.PI * 2);
+  ctx.fillStyle = '#e8e8d0';
+  ctx.fill();
+  // crescent mask
+  ctx.beginPath();
+  ctx.arc(pos.x + 6, pos.y - 3, 14, 0, Math.PI * 2);
+  ctx.fillStyle = skyColors(state.timeOfDay);
+  ctx.fill();
+}
+
+function drawClouds() {
+  const cloudOpacity = state.weather === 'sunny' ? 0.3 : state.weather === 'fog' ? 0.1 : 0.85;
+  clouds.forEach(c => {
+    ctx.save();
+    ctx.globalAlpha = c.opacity * cloudOpacity;
+    const bright = skyBrightness(state.timeOfDay);
+    const gray = state.weather === 'storm' ? 60 : state.weather === 'rain' ? 140 : 240;
+    c.puffs.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(c.x + p.dx, c.y + p.dy, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgb(${gray},${gray},${gray})`;
+      ctx.fill();
+    });
+    ctx.restore();
+
+    // move cloud
+    c.x += (c.speed + state.wind * 0.02);
+    if (c.x > W + 300) { c.x = -300; c.y = H * 0.05 + Math.random() * H * 0.28; }
+    if (c.x < -300) { c.x = W + 300; c.y = H * 0.05 + Math.random() * H * 0.28; }
+  });
+}
+
+function drawRain() {
+  if (state.weather !== 'rain' && state.weather !== 'storm') return;
+
+  const count = Math.floor(300 * (state.intensity / 100));
+  while (rainDrops.length < count) rainDrops.push(newRainDrop(true));
+
+  ctx.save();
+  ctx.globalAlpha = 1;
+  const windAngle = state.wind * 0.015;
+  rainDrops.slice(0, count).forEach(d => {
+    ctx.beginPath();
+    ctx.moveTo(d.x, d.y);
+    ctx.lineTo(d.x + windAngle * d.len, d.y + d.len);
+    ctx.strokeStyle = `rgba(180,200,255,${d.opacity})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    d.x += state.wind * 0.08;
+    d.y += d.speed;
+    if (d.y > H || isNaN(d.y)) { d.y = -10; d.x = Math.random() * W; }
+    if (d.x > W + 50) d.x = -50;
+    if (d.x < -50) d.x = W + 50;
+  });
+  ctx.restore();
+}
+
+function drawSnow() {
+  if (state.weather !== 'snow') return;
+
+  const count = Math.floor(200 * (state.intensity / 100));
+  while (snowFlakes.length < count) snowFlakes.push(newSnowFlake(true));
+
+  ctx.save();
+  ctx.globalAlpha = 1;
+  snowFlakes.slice(0, count).forEach(f => {
+    f.wobble += f.wobbleSpeed;
+    f.x += Math.sin(f.wobble) * 0.8 + state.wind * 0.03;
+    f.y += f.speed;
+    if (f.y > H || isNaN(f.y)) { f.y = -5; f.x = Math.random() * W; }
+    if (f.x > W + 20) f.x = -20;
+    if (f.x < -20) f.x = W + 20;
+
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${f.opacity})`;
+    ctx.fill();
+  });
+  ctx.restore();
+}
+
+function drawLightning() {
+  if (state.weather !== 'storm') { lightning = null; return; }
+  lightningTimer--;
+  const rate = Math.max(10, 120 - state.intensity);
+  if (lightningTimer <= 0) {
+    if (Math.random() < 0.4) {
+      lightning = generateLightning(W * 0.2 + Math.random() * W * 0.6, H * 0.05, H * 0.65);
+    }
+    lightningTimer = rate + Math.random() * rate;
+  }
+  if (!lightning) return;
+
+  // flash
+  ctx.save();
+  ctx.globalAlpha = 0.08;
+  ctx.fillStyle = '#aaccff';
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+
+  ctx.save();
+  ctx.strokeStyle = '#c8d8ff';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = '#aac8ff';
+  ctx.shadowBlur = 12;
+  ctx.globalAlpha = 0.9;
+  ctx.beginPath();
+  lightning.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+  ctx.stroke();
+  ctx.restore();
+
+  lightning = null;
+}
+
+function generateLightning(x, y, maxY) {
+  const pts = [{ x, y }];
+  let cx = x, cy = y;
+  while (cy < maxY) {
+    cx += (Math.random() - 0.5) * 60;
+    cy += 20 + Math.random() * 30;
+    pts.push({ x: cx, y: cy });
+  }
+  return pts;
+}
+
+function drawFog() {
+  if (state.weather !== 'fog' && !state.fog) return;
+
+  const alpha = 0.45;
+  const grad = ctx.createLinearGradient(0, H * 0.4, 0, H);
+  grad.addColorStop(0, `rgba(200,200,200,0)`);
+  grad.addColorStop(0.3, `rgba(200,200,200,${alpha})`);
+  grad.addColorStop(1, `rgba(200,200,200,${alpha * 1.4})`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function drawTerrain() {
+  const bright = skyBrightness(state.timeOfDay);
+  const isSnowy = state.weather === 'snow';
+
+  // mountains
+  const mGrad = ctx.createLinearGradient(0, H * 0.3, 0, H * 0.7);
+  if (isSnowy) {
+    mGrad.addColorStop(0, `rgb(${Math.round(200*bright+30)},${Math.round(210*bright+30)},${Math.round(220*bright+30)})`);
+    mGrad.addColorStop(1, `rgb(${Math.round(80*bright+20)},${Math.round(90*bright+20)},${Math.round(70*bright+20)})`);
+  } else {
+    mGrad.addColorStop(0, `rgb(${Math.round(90*bright+20)},${Math.round(80*bright+10)},${Math.round(70*bright+10)})`);
+    mGrad.addColorStop(1, `rgb(${Math.round(60*bright+10)},${Math.round(100*bright+20)},${Math.round(50*bright+10)})`);
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  terrain.forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.lineTo(W, H);
+  ctx.closePath();
+  ctx.fillStyle = mGrad;
+  ctx.fill();
+
+  // water
+  const wGrad = ctx.createLinearGradient(0, waterLine, 0, H);
+  const wr = Math.round(30*bright+10), wg = Math.round(80*bright+20), wb = Math.round(140*bright+30);
+  wGrad.addColorStop(0, `rgba(${wr},${wg},${wb},0.9)`);
+  wGrad.addColorStop(1, `rgba(${Math.max(0,wr-10)},${Math.max(0,wg-10)},${Math.max(0,wb-10)},1)`);
+  ctx.fillStyle = wGrad;
+  ctx.fillRect(0, waterLine, W, H - waterLine);
+
+  // water shimmer
+  if (bright > 0.1) {
+    const shimmerAlpha = bright * 0.15;
+    for (let i = 0; i < 8; i++) {
+      const sx = (W * 0.1 + W * 0.8 * (i / 8) + Math.sin(Date.now() * 0.001 + i) * 30);
+      const sy = waterLine + 10 + i * 8;
+      ctx.beginPath();
+      ctx.moveTo(sx - 20, sy);
+      ctx.lineTo(sx + 20, sy);
+      ctx.strokeStyle = `rgba(255,255,255,${shimmerAlpha})`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
+
+  // grass strip
+  const gGrad = ctx.createLinearGradient(0, H*0.62, 0, waterLine);
+  if (isSnowy) {
+    gGrad.addColorStop(0, `rgba(220,230,240,${bright * 0.9})`);
+    gGrad.addColorStop(1, `rgba(200,215,230,${bright * 0.7})`);
+  } else {
+    gGrad.addColorStop(0, `rgba(40,${Math.round(120*bright+30)},30,${bright * 0.8})`);
+    gGrad.addColorStop(1, `rgba(30,${Math.round(100*bright+20)},20,${bright * 0.6})`);
+  }
+  ctx.fillStyle = gGrad;
+  ctx.fillRect(0, H * 0.63, W, waterLine - H * 0.63);
+}
+
+function drawAurora() {
+  if (!state.aurora) return;
+  const bright = skyBrightness(state.timeOfDay);
+  if (bright > 0.3) return; // only at night
+  auroraTime += 0.005;
+  ctx.save();
+  ctx.globalAlpha = (1 - bright / 0.3) * 0.5;
+  for (let i = 0; i < 5; i++) {
+    const yBase = H * 0.1 + i * H * 0.05;
+    ctx.beginPath();
+    ctx.moveTo(0, yBase);
+    for (let x = 0; x <= W; x += 20) {
+      const y = yBase + Math.sin(x * 0.005 + auroraTime + i * 0.7) * 40
+                      + Math.sin(x * 0.009 + auroraTime * 1.3 + i) * 20;
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(W, yBase + 60);
+    ctx.lineTo(0, yBase + 60);
+    ctx.closePath();
+    const hue = 120 + i * 25 + Math.sin(auroraTime + i) * 20;
+    const grad = ctx.createLinearGradient(0, yBase, 0, yBase + 60);
+    grad.addColorStop(0, `hsla(${hue},100%,60%,0)`);
+    grad.addColorStop(0.5, `hsla(${hue},100%,60%,0.6)`);
+    grad.addColorStop(1, `hsla(${hue},100%,60%,0)`);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ── Main loop ─────────────────────────────────────────────────────────────────
+let lastTime = null;
+function loop(ts) {
+  if (lastTime === null) { lastTime = ts; requestAnimationFrame(loop); return; }
+  const dt = Math.min(ts - lastTime, 50); // cap dt to avoid huge jumps
+  lastTime = ts;
+
+  if (state.autoTime) {
+    state.timeOfDay += dt * 0.12;
+    if (state.timeOfDay >= 1440) state.timeOfDay = 60; // skip midnight, resume at 1am
+    document.getElementById('sl-time').value = state.timeOfDay;
+    updateTimeDisplay();
+  }
+
+  ctx.clearRect(0, 0, W, H);
+
+  drawSky();
+  drawStars();
+  drawAurora();
+  drawSun();
+  drawMoon();
+  drawClouds();
+  drawTerrain();
+  drawRain();
+  drawSnow();
+  drawLightning();
+  drawFog();
+
+  requestAnimationFrame(loop);
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+function setWeather(w) {
+  state.weather = w;
+  document.querySelectorAll('.wb').forEach(b => b.classList.remove('active'));
+  document.getElementById('w-' + w).classList.add('active');
+
+}
+
+function updateSlider(name, el) {
+  const v = parseFloat(el.value);
+  if (name === 'wind') { state.wind = v; document.getElementById('v-wind').textContent = v; }
+  if (name === 'intensity') { state.intensity = v; document.getElementById('v-intensity').textContent = v; }
+  if (name === 'time') {
+    state.timeOfDay = v;
+    updateTimeDisplay();
+  }
+}
+
+function updateTimeDisplay() {
+  const h = Math.floor(state.timeOfDay / 60);
+  const m = Math.floor(state.timeOfDay % 60);
+  const hh = String(h).padStart(2,'0');
+  const mm = String(m).padStart(2,'0');
+  const icon = (h >= 6 && h < 20) ? '☀️' : '🌙';
+  document.getElementById('time-display').textContent = `${icon} ${hh}:${mm}`;
+  document.getElementById('v-time').textContent = `${hh}h`;
+}
+
+function toggleTime() {
+  state.autoTime = !state.autoTime;
+  document.getElementById('btn-time').classList.toggle('active', state.autoTime);
+}
+
+function toggleFog() {
+  state.fog = !state.fog;
+  document.getElementById('btn-fog').classList.toggle('active', state.fog);
+}
+
+function toggleAurora() {
+  state.aurora = !state.aurora;
+  document.getElementById('btn-aurora').classList.toggle('active', state.aurora);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+resize();
+updateTimeDisplay();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
