@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Porkchop Bandit</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: 'Courier New', monospace; overflow: hidden; }
+  #hud { display: flex; gap: 30px; margin-bottom: 10px; color: #fff; font-size: 16px; font-weight: bold; }
+  .hud-item { display: flex; align-items: center; gap: 6px; }
+  .hud-label { color: #aaa; }
+  #score-val { color: #ffd700; }
+  #food-val { color: #ff6b6b; }
+  #health-bar-bg { width: 150px; height: 16px; background: #333; border-radius: 8px; overflow: hidden; }
+  #health-bar { height: 100%; background: linear-gradient(90deg, #ff4444, #ff8800); border-radius: 8px; transition: width 0.2s; }
+  canvas { border: 3px solid #444; border-radius: 4px; display: block; }
+  #overlay { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
+  #overlay h1 { font-size: 48px; color: #ffd700; text-shadow: 0 0 20px #ff8800; }
+  #overlay p { color: #ccc; font-size: 16px; text-align: center; max-width: 380px; line-height: 1.6; }
+  #overlay button { padding: 14px 40px; font-size: 20px; font-family: 'Courier New', monospace; background: #ff6b35; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+  #overlay button:hover { background: #ff8c55; transform: scale(1.05); }
+  #phase-banner { position: absolute; font-size: 36px; color: #ff2222; font-weight: bold; text-shadow: 0 0 15px #ff0000; display: none; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div class="hud-item"><span class="hud-label">SCORE</span><span id="score-val">0</span></div>
+  <div class="hud-item"><span class="hud-label">FOOD LEFT</span><span id="food-val">20</span></div>
+  <div class="hud-item"><span class="hud-label">HP</span><div id="health-bar-bg"><div id="health-bar" style="width:100%"></div></div></div>
+  <div class="hud-item" id="wanted-hud" style="display:none"><span class="hud-label">WANTED</span><span id="stars-val" style="color:#ff4444">★★★</span></div>
+</div>
+<canvas id="canvas" width="800" height="560"></canvas>
+<div id="overlay">
+  <h1>🍖 PORKCHOP BANDIT</h1>
+  <p>Eat all the porkchops &amp; steaks you can find...<br>but when the food runs out, the cops show up.<br><br><b>WASD / Arrow Keys</b> to move &nbsp;|&nbsp; <b>SPACE</b> to boost</p>
+  <button id="start-btn">START EATING</button>
+</div>
+<div id="phase-banner">🚨 POLICE CHASE! 🚨</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+// ── Game state ──────────────────────────────────────────────────────────────
+let state = 'menu'; // menu | eating | chase | dead | win
+let score = 0, health = 100, foodLeft = 0;
+let frame = 0, sirenPhase = 0;
+let boostCooldown = 0, boostActive = 0;
+let escaped = false, escapeTimer = 0;
+
+// ── Map / tiles ──────────────────────────────────────────────────────────────
+const TILE = 40;
+const COLS = W / TILE, ROWS = H / TILE;
+
+// Road layout: 1 = road, 0 = block
+const MAP = [];
+for (let r = 0; r < ROWS; r++) {
+  MAP[r] = [];
+  for (let c = 0; c < COLS; c++) {
+    MAP[r][c] = (r % 4 === 0 || c % 4 === 0) ? 1 : 0;
+  }
+}
+
+function isRoad(x, y) {
+  const c = Math.floor(x / TILE), r = Math.floor(y / TILE);
+  if (c < 0 || r < 0 || c >= COLS || r >= ROWS) return false;
+  return MAP[r][c] === 1;
+}
+
+function clampToRoad(nx, ny, ox, oy) {
+  const cx = isRoad(nx, oy) ? nx : ox;
+  const cy = isRoad(cx, ny) ? ny : oy;
+  return [cx, cy];
+}
+
+// ── Player ───────────────────────────────────────────────────────────────────
+const player = {
+  x: TILE * 2, y: TILE * 2,
+  vx: 0, vy: 0,
+  speed: 3.2, size: 18,
+  dir: 0, // angle
+  footStep: 0,
+};
+
+// ── Food items ───────────────────────────────────────────────────────────────
+const foods = [];
+function spawnFood() {
+  const types = ['🍖','🥩'];
+  const roadTiles = [];
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (MAP[r][c] === 1) roadTiles.push([c, r]);
+
+  // pick 20 random road tiles
+  shuffle(roadTiles);
+  const picks = roadTiles.slice(0, 20);
+  picks.forEach(([c, r]) => {
+    foods.push({ x: c*TILE+TILE/2, y: r*TILE+TILE/2, type: types[Math.random()<0.5?0:1], pulse: Math.random()*Math.PI*2, eaten: false });
+  });
+  foodLeft = foods.length;
+}
+
+// ── Police ───────────────────────────────────────────────────────────────────
+const cops = [];
+function spawnCops() {
+  const corners = [[TILE, TILE], [W-TILE*2, TILE], [TILE, H-TILE*2], [W-TILE*2, H-TILE*2]];
+  corners.forEach(([x, y]) => {
+    cops.push({ x, y, vx: 0, vy: 0, speed: 1.9, size: 16, sirenFlip: 0, dir: 0 });
+  });
+}
+
+// ── Keys ──────────────────────────────────────────────────────────────────────
+const keys = {};
+document.addEventListener('keydown', e => { keys[e.code] = true; if(e.code==='Space') e.preventDefault(); });
+document.addEventListener('keyup',   e => { keys[e.code] = false; });
+
+// ── Particles ─────────────────────────────────────────────────────────────────
+const particles = [];
+function burst(x, y, color, n=10) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random()*Math.PI*2, spd = 1.5+Math.random()*3;
+    particles.push({ x, y, vx: Math.cos(a)*spd, vy: Math.sin(a)*spd, life: 40, maxLife: 40, color });
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function shuffle(a) { for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+function dist(a, b) { return Math.hypot(a.x-b.x, a.y-b.y); }
+function lerpAngle(a, b, t) {
+  let d = b - a; while(d>Math.PI) d-=Math.PI*2; while(d<-Math.PI) d+=Math.PI*2;
+  return a + d * t;
+}
+
+// ── Drawing helpers ───────────────────────────────────────────────────────────
+function drawMap() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = c*TILE, y = r*TILE;
+      if (MAP[r][c] === 1) {
+        ctx.fillStyle = '#2d2d2d';
+        ctx.fillRect(x, y, TILE, TILE);
+        // road markings
+        ctx.strokeStyle = '#3a3a3a';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x+0.5, y+0.5, TILE-1, TILE-1);
+      } else {
+        ctx.fillStyle = '#1e3a1e';
+        ctx.fillRect(x, y, TILE, TILE);
+        // building detail
+        ctx.fillStyle = '#1a341a';
+        ctx.fillRect(x+4, y+4, TILE-8, TILE-8);
+        ctx.fillStyle = '#243324';
+        for (let wi=0;wi<2;wi++) for(let wj=0;wj<2;wj++) {
+          ctx.fillRect(x+8+wi*14, y+8+wj*14, 8, 8);
+        }
+      }
+    }
+  }
+  // center line dashes on main roads
+  ctx.save();
+  ctx.setLineDash([8,8]);
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (MAP[r][c]===1) {
+        // vertical dash
+        if (r+1<ROWS && MAP[r+1][c]===1) {
+          ctx.beginPath(); ctx.moveTo(c*TILE+TILE/2, r*TILE+TILE/2); ctx.lineTo(c*TILE+TILE/2, (r+1)*TILE+TILE/2); ctx.stroke();
+        }
+      }
+    }
+  }
+  ctx.restore();
+}
+
+function drawFood() {
+  foods.forEach(f => {
+    if (f.eaten) return;
+    f.pulse += 0.06;
+    const sc = 1 + Math.sin(f.pulse)*0.12;
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.scale(sc, sc);
+    ctx.font = '22px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(f.type, 0, 0);
+    ctx.restore();
+    // glow
+    ctx.save();
+    ctx.globalAlpha = 0.25 + Math.sin(f.pulse)*0.1;
+    ctx.shadowColor = '#ffd700';
+    ctx.shadowBlur = 15;
+    ctx.font = '22px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(f.type, f.x, f.y);
+    ctx.restore();
+  });
+}
+
+function drawPlayer() {
+  const p = player;
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(p.dir);
+
+  // boost glow
+  if (boostActive > 0) {
+    ctx.shadowColor = '#00aaff';
+    ctx.shadowBlur = 20;
+  }
+
+  // body
+  ctx.fillStyle = '#f4c178';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, p.size, p.size*0.8, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // shirt
+  ctx.fillStyle = '#e74c3c';
+  ctx.beginPath();
+  ctx.ellipse(0, 4, p.size*0.75, p.size*0.55, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // eyes
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(p.size*0.35, -p.size*0.15, 4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#222';
+  ctx.beginPath(); ctx.arc(p.size*0.35+1, -p.size*0.15, 2, 0, Math.PI*2); ctx.fill();
+
+  // mouth (eating animation if food phase)
+  const mouthOpen = state==='eating' ? Math.abs(Math.sin(frame*0.25))*8 : 3;
+  ctx.strokeStyle = '#8b4513';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(p.size*0.3, p.size*0.15, mouthOpen/2, 0, Math.PI); ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawCop(cop) {
+  ctx.save();
+  ctx.translate(cop.x, cop.y);
+  ctx.rotate(cop.dir);
+
+  // car body
+  const siren = Math.floor(sirenPhase/8) % 2;
+  ctx.fillStyle = siren ? '#1144ff' : '#ffffff';
+  ctx.beginPath();
+  ctx.roundRect(-cop.size, -cop.size*0.6, cop.size*2, cop.size*1.2, 5);
+  ctx.fill();
+
+  // siren lights
+  ctx.fillStyle = siren ? '#ff0000' : '#0044ff';
+  ctx.fillRect(-8, -cop.size*0.6-5, 6, 5);
+  ctx.fillStyle = siren ? '#0044ff' : '#ff0000';
+  ctx.fillRect(2, -cop.size*0.6-5, 6, 5);
+
+  // windshield
+  ctx.fillStyle = '#88ccff88';
+  ctx.beginPath();
+  ctx.roundRect(2, -cop.size*0.45, cop.size*0.8, cop.size*0.9, 3);
+  ctx.fill();
+
+  // wheels
+  ctx.fillStyle = '#222';
+  [[-cop.size*0.6,-cop.size*0.65],[cop.size*0.45,-cop.size*0.65],[-cop.size*0.6,cop.size*0.55],[cop.size*0.45,cop.size*0.55]].forEach(([wx,wy])=>{
+    ctx.beginPath(); ctx.ellipse(wx,wy,5,4,0,0,Math.PI*2); ctx.fill();
+  });
+
+  ctx.restore();
+}
+
+function drawParticles() {
+  particles.forEach(p => {
+    ctx.globalAlpha = p.life / p.maxLife;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4*(p.life/p.maxLife), 0, Math.PI*2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+}
+
+function drawSirenOverlay() {
+  if (state !== 'chase') return;
+  const siren = Math.floor(sirenPhase/10) % 2;
+  ctx.save();
+  ctx.globalAlpha = 0.06;
+  ctx.fillStyle = siren ? '#ff0000' : '#0000ff';
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
+// ── Update logic ──────────────────────────────────────────────────────────────
+function updatePlayer() {
+  let dx = 0, dy = 0;
+  if (keys['ArrowLeft']  || keys['KeyA']) dx -= 1;
+  if (keys['ArrowRight'] || keys['KeyD']) dx += 1;
+  if (keys['ArrowUp']    || keys['KeyW']) dy -= 1;
+  if (keys['ArrowDown']  || keys['KeyS']) dy += 1;
+
+  if (boostActive > 0) boostActive--;
+  if (boostCooldown > 0) boostCooldown--;
+  if (keys['Space'] && boostCooldown <= 0 && state === 'chase') {
+    boostActive = 50; boostCooldown = 180;
+  }
+
+  const spd = player.speed * (boostActive > 0 ? 1.9 : 1);
+  if (dx !== 0 || dy !== 0) {
+    const mag = Math.hypot(dx, dy);
+    dx = dx/mag * spd; dy = dy/mag * spd;
+    const ta = Math.atan2(dy, dx);
+    player.dir = lerpAngle(player.dir, ta, 0.2);
+    player.footStep++;
+  }
+
+  player.x = Math.max(player.size, Math.min(W-player.size, player.x + dx));
+  player.y = Math.max(player.size, Math.min(H-player.size, player.y + dy));
+}
+
+function updateFoods() {
+  foods.forEach(f => {
+    if (f.eaten) return;
+    if (dist(f, player) < player.size + 12) {
+      f.eaten = true;
+      score += f.type === '🍖' ? 100 : 150;
+      health = Math.min(100, health + 8);
+      burst(f.x, f.y, '#ffd700', 12);
+      foodLeft = foods.filter(x=>!x.eaten).length;
+    }
+  });
+}
+
+function updateCops() {
+  sirenPhase++;
+  cops.forEach(cop => {
+    // steer toward player with some jitter
+    const ax = player.x - cop.x + (Math.random()-0.5)*20;
+    const ay = player.y - cop.y + (Math.random()-0.5)*20;
+    const mag = Math.hypot(ax, ay) || 1;
+    const tx = ax/mag * cop.speed;
+    const ty = ay/mag * cop.speed;
+    cop.vx += (tx - cop.vx) * 0.08;
+    cop.vy += (ty - cop.vy) * 0.08;
+
+    cop.dir = lerpAngle(cop.dir, Math.atan2(cop.vy, cop.vx), 0.15);
+    cop.x = Math.max(cop.size, Math.min(W-cop.size, cop.x + cop.vx));
+    cop.y = Math.max(cop.size, Math.min(H-cop.size, cop.y + cop.vy));
+
+    // catch player
+    if (dist(cop, player) < cop.size + player.size - 4) {
+      health -= 0.6;
+      burst(player.x, player.y, '#ff4444', 6);
+    }
+  });
+
+  if (health <= 0) { health = 0; state = 'dead'; }
+}
+
+function updateParticles() {
+  for (let i = particles.length-1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= 0.93; p.vy *= 0.93;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+// ── Main loop ─────────────────────────────────────────────────────────────────
+function loop() {
+  requestAnimationFrame(loop);
+  frame++;
+  ctx.clearRect(0, 0, W, H);
+  drawMap();
+
+  if (state === 'eating' || state === 'chase') {
+    updatePlayer();
+    updateParticles();
+    drawFood();
+    drawParticles();
+    drawPlayer();
+
+    if (state === 'eating') {
+      updateFoods();
+      if (foodLeft === 0) startChase();
+    } else {
+      updateCops();
+      cops.forEach(drawCop);
+      drawSirenOverlay();
+      // check escape: reach corner opposite to cops avg
+      // simple: survive 30 seconds = win
+      escapeTimer++;
+      if (escapeTimer > 1800) { state = 'win'; showEndScreen(true); }
+    }
+
+    // HUD updates
+    document.getElementById('score-val').textContent = score;
+    document.getElementById('food-val').textContent = foodLeft;
+    document.getElementById('health-bar').style.width = health+'%';
+    document.getElementById('health-bar').style.background = health > 50 ? 'linear-gradient(90deg,#44cc44,#88ff44)' : health > 25 ? 'linear-gradient(90deg,#ff8800,#ffcc00)' : 'linear-gradient(90deg,#ff2222,#ff6644)';
+
+    if (state === 'dead') showEndScreen(false);
+  }
+}
+
+function startChase() {
+  state = 'chase';
+  spawnCops();
+  document.getElementById('wanted-hud').style.display = 'flex';
+  const banner = document.getElementById('phase-banner');
+  banner.style.display = 'block';
+  banner.style.top = (canvas.getBoundingClientRect().top + H/2 - 30) + 'px';
+  banner.style.left = (canvas.getBoundingClientRect().left + W/2) + 'px';
+  banner.style.transform = 'translateX(-50%)';
+  setTimeout(() => banner.style.display = 'none', 2500);
+}
+
+function showEndScreen(won) {
+  const overlay = document.getElementById('overlay');
+  overlay.innerHTML = won
+    ? `<h1 style="color:#00ff88">🏃 ESCAPED!</h1>
+       <p>You survived the police chase!<br>Final Score: <b style="color:#ffd700">${score}</b></p>
+       <button id="start-btn">PLAY AGAIN</button>`
+    : `<h1 style="color:#ff4444">🚨 BUSTED!</h1>
+       <p>The cops caught you, porkchop bandit.<br>Final Score: <b style="color:#ffd700">${score}</b></p>
+       <button id="start-btn">TRY AGAIN</button>`;
+  overlay.style.display = 'flex';
+  document.getElementById('start-btn').addEventListener('click', startGame);
+}
+
+function startGame() {
+  state = 'eating';
+  score = 0; health = 100; frame = 0;
+  boostCooldown = 0; boostActive = 0;
+  sirenPhase = 0; escapeTimer = 0;
+  player.x = TILE*2; player.y = TILE*2;
+  player.vx = 0; player.vy = 0; player.dir = 0;
+  foods.length = 0; cops.length = 0; particles.length = 0;
+  spawnFood();
+  document.getElementById('score-val').textContent = '0';
+  document.getElementById('food-val').textContent = '20';
+  document.getElementById('health-bar').style.width = '100%';
+  document.getElementById('wanted-hud').style.display = 'none';
+  document.getElementById('phase-banner').style.display = 'none';
+  document.getElementById('overlay').style.display = 'none';
+}
+
+// Start button
+document.getElementById('start-btn').addEventListener('click', startGame);
+
+loop();
+</script>
+</body>
+</html>
