@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Apple</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      background: #000;
+      color: #f5f5f7;
+    }
+
+    /* NAV */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 44px;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .nav-inner {
+      width: 100%;
+      max-width: 1024px;
+      padding: 0 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-logo svg { width: 16px; height: 20px; fill: #f5f5f7; display: block; }
+    .nav-links { display: flex; gap: 22px; list-style: none; }
+    .nav-links a {
+      color: rgba(245,245,247,0.8);
+      text-decoration: none;
+      font-size: 12px;
+      letter-spacing: -0.01em;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: #f5f5f7; }
+    .nav-actions { display: flex; gap: 18px; align-items: center; }
+    .nav-actions svg { width: 15px; height: 15px; fill: rgba(245,245,247,0.8); cursor: pointer; }
+    .nav-actions svg:hover { fill: #f5f5f7; }
+    @media (max-width: 768px) { .nav-links { display: none; } }
+
+    /* HERO TILE */
+    .hero {
+      margin-top: 44px;
+      background: #1d1d1f;
+      text-align: center;
+      padding: 60px 20px 0;
+      overflow: hidden;
+    }
+    .hero-label {
+      font-size: 17px;
+      font-weight: 600;
+      color: #6e6e73;
+      margin-bottom: 6px;
+    }
+    .hero h1 {
+      font-size: 56px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: #f5f5f7;
+      line-height: 1.07;
+      margin-bottom: 8px;
+    }
+    .hero-sub {
+      font-size: 21px;
+      color: #a1a1a6;
+      margin-bottom: 20px;
+    }
+    .hero-links { display: flex; gap: 20px; justify-content: center; margin-bottom: 40px; }
+    .hl-blue { color: #2997ff; text-decoration: none; font-size: 17px; font-weight: 400; }
+    .hl-blue:hover { text-decoration: underline; }
+    .hl-white { color: #f5f5f7; text-decoration: none; font-size: 17px; font-weight: 400; }
+    .hl-white:hover { text-decoration: underline; }
+    .hero-img {
+      max-width: 800px;
+      margin: 0 auto;
+      display: block;
+      width: 100%;
+    }
+
+    /* PRODUCT GRID */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 8px;
+      background: #000;
+      max-width: 100%;
+    }
+    @media (max-width: 700px) {
+      .grid { grid-template-columns: 1fr; }
+      .tile-wide { grid-column: span 1 !important; }
+    }
+    .tile-wide { grid-column: span 2; }
+
+    .tile {
+      background: #1d1d1f;
+      border-radius: 18px;
+      overflow: hidden;
+      text-align: center;
+      padding: 52px 24px 0;
+      position: relative;
+      min-height: 500px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .tile-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #6e6e73;
+      margin-bottom: 4px;
+      letter-spacing: 0.01em;
+    }
+    .tile h2 {
+      font-size: 40px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #f5f5f7;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+    .tile h2.dark { color: #1d1d1f; }
+    .tile-label.dark { color: #6e6e73; }
+    .tile-sub {
+      font-size: 19px;
+      color: #a1a1a6;
+      margin-bottom: 14px;
+      max-width: 440px;
+    }
+    .tile-sub.dark { color: #6e6e73; }
+    .tile-links { display: flex; gap: 20px; justify-content: center; margin-bottom: 28px; }
+    .tl-blue { color: #2997ff; text-decoration: none; font-size: 17px; }
+    .tl-blue:hover { text-decoration: underline; }
+    .tl-white { color: #f5f5f7; text-decoration: none; font-size: 17px; }
+    .tl-white:hover { text-decoration: underline; }
+    .tl-dark { color: #1d1d1f; text-decoration: none; font-size: 17px; }
+    .tl-dark:hover { text-decoration: underline; }
+    .tl-blue-dark { color: #06c; text-decoration: none; font-size: 17px; }
+    .tl-blue-dark:hover { text-decoration: underline; }
+    .tile-price {
+      font-size: 13px;
+      color: #a1a1a6;
+      margin-bottom: 10px;
+    }
+    .tile-price.dark { color: #6e6e73; }
+
+    .tile-img {
+      width: 100%;
+      max-width: 600px;
+      margin-top: auto;
+      display: block;
+      object-fit: contain;
+      min-height: 200px;
+    }
+    .tile-img[data-error="1"] {
+      min-height: unset;
+      opacity: 0.3;
+    }
+
+    /* Light tile */
+    .tile.light { background: #f5f5f7; }
+    .tile.light .tile-label { color: #6e6e73; }
+    .tile.light .tile-sub { color: #6e6e73; }
+    .tile.light h2 { color: #1d1d1f; }
+
+    /* White tile */
+    .tile.white { background: #fff; }
+    .tile.white h2 { color: #1d1d1f; }
+    .tile.white .tile-label { color: #6e6e73; }
+    .tile.white .tile-sub { color: #6e6e73; }
+
+    /* Custom gradient tiles */
+    .tile.iphone-family { background: #000; }
+    .tile.watch-bg { background: linear-gradient(180deg, #1a1a1e 0%, #2c1810 100%); }
+    .tile.macbook-air-bg { background: linear-gradient(160deg, #e8e8ed 0%, #d1d1d8 100%); }
+    .tile.ipad-bg { background: linear-gradient(180deg, #f0f0f5 0%, #e5e5ea 100%); }
+
+    /* FOOTER */
+    footer {
+      background: #1d1d1f;
+      border-top: 1px solid #3d3d3f;
+      padding: 20px 0 0;
+    }
+    .footer-top {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 0 22px 20px;
+      border-bottom: 1px solid #3d3d3f;
+      font-size: 12px;
+      color: #6e6e73;
+      line-height: 1.6;
+    }
+    .footer-cols {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 20px 22px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 20px;
+      border-bottom: 1px solid #3d3d3f;
+    }
+    @media (max-width: 700px) { .footer-cols { grid-template-columns: repeat(2, 1fr); } }
+    .fc-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #f5f5f7;
+      margin-bottom: 10px;
+    }
+    .fc-links { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+    .fc-links a { font-size: 12px; color: #6e6e73; text-decoration: none; }
+    .fc-links a:hover { color: #f5f5f7; text-decoration: underline; }
+
+    .footer-bottom {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 12px 22px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 20px;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #6e6e73;
+    }
+    .footer-bottom a { color: #6e6e73; text-decoration: none; }
+    .footer-bottom a:hover { color: #f5f5f7; }
+    .fbl { display: flex; gap: 20px; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a class="nav-logo" href="#">
+      <svg viewBox="0 0 814 1000"><path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 376.7 0 248.7 0 124.8 0 56.1 21.1 29 30.3 16.8A295.2 295.2 0 01219 0c68.5 0 154.3 44.9 204.7 44.9 47.4 0 150.5-49.5 228.6-49.5 28.9 0 108.2 2.5 160 84.1zm-210.1 22c-5.2-50.3-30.5-103.4-65.2-139.4-41.2-41.8-89.4-66.5-135.9-66.5-2 0-4.1 0-6.1.2 1.5 55.2 24.2 108.2 63.4 147.4 36.5 36.8 89 64.4 143.8 58.3z"/></svg>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#">Store</a></li>
+      <li><a href="#">Mac</a></li>
+      <li><a href="#">iPad</a></li>
+      <li><a href="#">iPhone</a></li>
+      <li><a href="#">Watch</a></li>
+      <li><a href="#">Vision</a></li>
+      <li><a href="#">AirPods</a></li>
+      <li><a href="#">TV &amp; Home</a></li>
+      <li><a href="#">Entertainment</a></li>
+      <li><a href="#">Accessories</a></li>
+      <li><a href="#">Support</a></li>
+    </ul>
+    <div class="nav-actions">
+      <svg viewBox="0 0 18 18"><path fill-rule="evenodd" d="M7.5 13a5.5 5.5 0 1 1 3.59-1.339l3.624 3.624-.707.707L10.383 12.3A5.481 5.481 0 0 1 7.5 13zm0-1a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9z"/></svg>
+      <svg viewBox="0 0 18 18"><path fill-rule="evenodd" d="M9 1a3 3 0 0 1 3 3h2a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a1 1 0 0 1 1-1h2a3 3 0 0 1 3-3zm0 1a2 2 0 0 0-2 2h4a2 2 0 0 0-2-2zM5 5H4v9a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5h-1v1a1 1 0 1 1-2 0V5H7v1a1 1 0 0 1-2 0V5z"/></svg>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO — iPhone 17 Pro -->
+<section class="hero" style="background:#000;">
+  <p class="hero-label">New</p>
+  <h1>iPhone 17 Pro</h1>
+  <p class="hero-sub">Titanium. Thinner. More powerful.</p>
+  <div class="hero-links">
+    <a href="#" class="hl-blue">Learn more</a>
+    <a href="#" class="hl-white">Buy</a>
+  </div>
+  <img class="hero-img"
+    src="https://store.storeimages.cdn-apple.com/1/as-images.apple.com/is/iphone-card-40-17pro-202509?wid=800&hei=1000&fmt=p-jpg&qlt=95"
+    alt="iPhone 17 Pro">
+</section>
+
+<!-- PRODUCT GRID -->
+<div class="grid">
+
+  <!-- iPhone Air -->
+  <div class="tile" style="background:#000;">
+    <p class="tile-label">New</p>
+    <h2>iPhone Air</h2>
+    <p class="tile-sub">The thinnest iPhone ever. Surprisingly powerful.</p>
+    <div class="tile-links">
+      <a href="#" class="tl-blue">Learn more</a>
+      <a href="#" class="tl-white">Buy</a>
+    </div>
+    <img class="tile-img"
+      src="https://store.storeimages.cdn-apple.com/1/as-images.apple.com/is/iphone-card-40-17air-202509?wid=680&hei=880&fmt=p-jpg&qlt=95"
+      alt="iPhone Air">
+  </div>
+
+  <!-- Apple Watch Series 11 -->
+  <div class="tile watch-bg">
+    <p class="tile-label">New</p>
+    <h2>Apple Watch<br>Series 11</h2>
+    <p class="tile-sub" style="color:#a1a1a6;">More ways to connect to your health.</p>
+    <div class="tile-links">
+      <a href="#" class="tl-blue">Learn more</a>
+      <a href="#" class="tl-white">Buy</a>
+    </div>
+    <p class="tile-price" style="color:#a1a1a6;">From $399</p>
+    <img class="tile-img"
+      src="https://store.storeimages.cdn-apple.com/1/as-images.apple.com/is/watch-card-40-s11-202509_GEO_US?wid=680&hei=528&fmt=jpeg&qlt=90"
+      alt="Apple Watch Series 11">
+  </div>
+
+  <!-- MacBook Pro (wide) -->
+  <div class="tile tile-wide light">
+    <p class="tile-label">Latest</p>
+    <h2 class="dark">MacBook Pro</h2>
+    <p class="tile-sub dark">M4, M4 Pro, or M4 Max. Up to 24 hours battery. Up to 128GB memory.</p>
+    <div class="tile-links">
+      <a href="#" class="tl-blue-dark">Learn more</a>
+      <a href="#" class="tl-dark">Buy</a>
+    </div>
+    <p class="tile-price dark">From $1,599</p>
+    <img class="tile-img"
+      src="https://store.storeimages.cdn-apple.com/1/as-images.apple.com/is/mac-card-40-macbookpro-14-16-202410?wid=680&hei=528&fmt=p-jpg&qlt=95"
+      alt="MacBook Pro" style="max-width:700px;">
+  </div>
+
+  <!-- MacBook Air -->
+  <div class="tile macbook-air-bg">
+    <p class="tile-label" style="color:#6e6e73;">New</p>
+    <h2 style="color:#1d1d1f;">MacBook Air</h2>
+    <p class="tile-sub dark">M4 chip. Brilliantly thin. Incredibly capable.</p>
+    <div class="tile-links">
+      <a href="#" class="tl-blue-dark">Learn more</a>
+      <a href="#" class="tl-dark">Buy</a>
+    </div>
+    <p class="tile-price dark">From $1,099</p>
+    <img class="tile-img"
+      src="https://store.storeimages.cdn-apple.com/1/as-images.apple.com/is/mac-card-40-macbook-air-202503?wid=680&hei=528&fmt=p-jpg&qlt=95"
+      alt="MacBook Air">
+  </div>
+
+  <!-- iPad Pro -->
+  <div class="tile ipad-bg">
+    <p class="tile-label" style="color:#6e6e73;">Latest</p>
+    <h2 style="color:#1d1d1f;">iPad Pro</h2>
+    <p class="tile-sub dark">M4 chip. Tandem OLED. The ultimate iPad.</p>
+    <div class="tile-links">
+      <a href="#" class="tl-blue-dark">Learn more</a>
+      <a href="#" class="tl-dark">Buy</a>
+    </div>
+    <p class="tile-price dark">From $999</p>
+    <img class="tile-img"
+      src="https://store.storeimages.cdn-apple.com/1/as-images.apple.com/is/ipad-card-40-pro-202405?wid=680&hei=528&fmt=p-jpg&qlt=95"
+      alt="iPad Pro">
+  </div>
+
+  <!-- iPad Air -->
+  <div class="tile white">
+    <p class="tile-label">New</p>
+    <h2 class="dark">iPad Air</h2>
+    <p class="tile-sub dark">M4 chip. Supercharged for everything you do.</p>
+    <div class="tile-links">
+      <a href="#" class="tl-blue-dark">Learn more</a>
+      <a href="#" class="tl-dark">Buy</a>
+    </div>
+    <p class="tile-price dark">From $599</p>
+    <img class="tile-img"
+      src="https://store.storeimages.cdn-apple.com/1/as-images.apple.com/is/ipad-card-40-air-202405?wid=680&hei=528&fmt=p-jpg&qlt=95"
+      alt="iPad Air">
+  </div>
+
+  <!-- AirPods Pro 3 (wide) -->
+  <div class="tile tile-wide" style="background:#1d1d1f;">
+    <p class="tile-label">New</p>
+    <h2>AirPods Pro 3</h2>
+    <p class="tile-sub">All-new hearing health features. Adaptive Audio. Personalized Spatial Audio.</p>
+    <div class="tile-links">
+      <a href="#" class="tl-blue">Learn more</a>
+      <a href="#" class="tl-white">Buy</a>
+    </div>
+    <p class="tile-price">From $249</p>
+    <img class="tile-img"
+      src="https://www.apple.com/v/home/cm/images/promos/airpods-pro-3/promo_airpodspro_3__f6xmza7bglei_large.jpg"
+      alt="AirPods Pro 3" style="max-width:700px;border-radius:0 0 18px 18px;">
+  </div>
+
+  <!-- Mac mini -->
+  <div class="tile light">
+    <p class="tile-label dark">New</p>
+    <h2 class="dark">Mac mini</h2>
+    <p class="tile-sub dark">M4 or M4 Pro. Strikingly compact. Outstandingly capable.</p>
+    <div class="tile-links">
+      <a href="#" class="tl-blue-dark">Learn more</a>
+      <a href="#" class="tl-dark">Buy</a>
+    </div>
+    <p class="tile-price dark">From $599</p>
+    <img class="tile-img"
+      src="https://store.storeimages.cdn-apple.com/1/as-images.apple.com/is/mac-card-40-mac-mini-202410?wid=680&hei=528&fmt=p-jpg&qlt=95"
+      alt="Mac mini">
+  </div>
+
+  <!-- Apple Watch Ultra 3 -->
+  <div class="tile" style="background:#1c1c1e;">
+    <p class="tile-label">New</p>
+    <h2>Apple Watch<br>Ultra 3</h2>
+    <p class="tile-sub">The most capable Apple Watch. Built for adventure.</p>
+    <div class="tile-links">
+      <a href="#" class="tl-blue">Learn more</a>
+      <a href="#" class="tl-white">Buy</a>
+    </div>
+    <p class="tile-price">From $799</p>
+    <img class="tile-img"
+      src="https://store.storeimages.cdn-apple.com/1/as-images.apple.com/is/watch-card-40-ultra3-202509_GEO_US?wid=680&hei=528&fmt=p-jpg&qlt=95"
+      alt="Apple Watch Ultra 3">
+  </div>
+
+  <!-- iPhone 17 -->
+  <div class="tile tile-wide" style="background:#000;">
+    <p class="tile-label">New</p>
+    <h2>iPhone 17</h2>
+    <p class="tile-sub">A18 chip. 48MP camera system. Ceramic Shield. All-new design.</p>
+    <div class="tile-links">
+      <a href="#" class="tl-blue">Learn more</a>
+      <a href="#" class="tl-white">Buy</a>
+    </div>
+    <p class="tile-price">From $799</p>
+    <img class="tile-img"
+      src="https://store.storeimages.cdn-apple.com/1/as-images.apple.com/is/iphone-card-40-17-202509?wid=800&hei=1000&fmt=p-jpg&qlt=95"
+      alt="iPhone 17" style="max-width:700px;">
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-top">
+    1. iPhone 17 Pro pricing before taxes. Monthly payments require 0% APR financing with Apple Card through Apple Financing LLC. ² Battery life varies by use and configuration.
+  </div>
+  <div class="footer-cols">
+    <div>
+      <p class="fc-title">Shop and Learn</p>
+      <ul class="fc-links">
+        <li><a href="#">Store</a></li>
+        <li><a href="#">Mac</a></li>
+        <li><a href="#">iPad</a></li>
+        <li><a href="#">iPhone</a></li>
+        <li><a href="#">Watch</a></li>
+        <li><a href="#">Vision Pro</a></li>
+        <li><a href="#">AirPods</a></li>
+        <li><a href="#">TV &amp; Home</a></li>
+        <li><a href="#">AirTag</a></li>
+        <li><a href="#">Accessories</a></li>
+        <li><a href="#">Gift Cards</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="fc-title">Services</p>
+      <ul class="fc-links">
+        <li><a href="#">Apple Music</a></li>
+        <li><a href="#">Apple TV+</a></li>
+        <li><a href="#">Apple Arcade</a></li>
+        <li><a href="#">Apple News+</a></li>
+        <li><a href="#">Apple Fitness+</a></li>
+        <li><a href="#">Apple Podcasts</a></li>
+        <li><a href="#">Apple Books</a></li>
+        <li><a href="#">App Store</a></li>
+        <li><a href="#">iCloud</a></li>
+        <li><a href="#">Apple One</a></li>
+        <li><a href="#">Apple Card</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="fc-title">Apple Store</p>
+      <ul class="fc-links">
+        <li><a href="#">Find a Store</a></li>
+        <li><a href="#">Genius Bar</a></li>
+        <li><a href="#">Today at Apple</a></li>
+        <li><a href="#">Apple Camp</a></li>
+        <li><a href="#">Apple Trade In</a></li>
+        <li><a href="#">Financing</a></li>
+        <li><a href="#">Order Status</a></li>
+        <li><a href="#">Shopping Help</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="fc-title">For Business</p>
+      <ul class="fc-links">
+        <li><a href="#">Apple and Business</a></li>
+        <li><a href="#">Shop for Business</a></li>
+      </ul>
+      <br>
+      <p class="fc-title">For Education</p>
+      <ul class="fc-links">
+        <li><a href="#">Apple and Education</a></li>
+        <li><a href="#">Shop for K–12</a></li>
+        <li><a href="#">Shop for College</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="fc-title">About Apple</p>
+      <ul class="fc-links">
+        <li><a href="#">Newsroom</a></li>
+        <li><a href="#">Apple Leadership</a></li>
+        <li><a href="#">Career Opportunities</a></li>
+        <li><a href="#">Investors</a></li>
+        <li><a href="#">Ethics &amp; Compliance</a></li>
+        <li><a href="#">Events</a></li>
+        <li><a href="#">Privacy</a></li>
+        <li><a href="#">Contact Apple</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>Copyright &copy; 2026 Apple Inc. All rights reserved.</span>
+    <div class="fbl">
+      <a href="#">Privacy Policy</a>
+      <a href="#">Terms of Use</a>
+      <a href="#">Sales and Refunds</a>
+      <a href="#">Legal</a>
+      <a href="#">Site Map</a>
+    </div>
+    <span>United States</span>
+  </div>
+</footer>
+
+</body>
+</html>

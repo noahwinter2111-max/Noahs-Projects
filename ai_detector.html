@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Text Detector</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface2: #1a1a26;
+      --border: #2a2a3d;
+      --accent: #7c5cfc;
+      --accent2: #c084fc;
+      --human: #34d399;
+      --ai: #f87171;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #7c5cfc22, #c084fc22);
+      border: 1px solid #7c5cfc55;
+      color: var(--accent2);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 0.3rem 0.8rem;
+      border-radius: 100px;
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 800;
+      background: linear-gradient(135deg, #e2e8f0 0%, var(--accent2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.15;
+      margin-bottom: 0.75rem;
+    }
+
+    header p {
+      color: var(--muted);
+      font-size: 1rem;
+      max-width: 500px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .card-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 200px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.95rem;
+      line-height: 1.7;
+      padding: 1rem 1.2rem;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+
+    textarea:focus {
+      border-color: var(--accent);
+    }
+
+    textarea::placeholder {
+      color: var(--muted);
+    }
+
+    .char-count {
+      text-align: right;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 0.9rem 2rem;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s;
+      letter-spacing: 0.02em;
+    }
+
+    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    /* Results */
+    #results {
+      display: none;
+      animation: fadeUp 0.35s ease;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Verdict banner */
+    .verdict {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+      padding: 1.5rem;
+      border-radius: var(--radius);
+      border: 1px solid;
+      margin-bottom: 1.25rem;
+    }
+
+    .verdict.ai    { background: #f8717111; border-color: #f8717144; }
+    .verdict.human { background: #34d39911; border-color: #34d39944; }
+    .verdict.mixed { background: #fbbf2411; border-color: #fbbf2444; }
+
+    .verdict-icon {
+      font-size: 2.4rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .verdict-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+    }
+
+    .verdict.ai    .verdict-label { color: var(--ai); }
+    .verdict.human .verdict-label { color: var(--human); }
+    .verdict.mixed .verdict-label { color: #fbbf24; }
+
+    .verdict-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      margin-bottom: 0.2rem;
+    }
+
+    .verdict.ai    .verdict-title { color: var(--ai); }
+    .verdict.human .verdict-title { color: var(--human); }
+    .verdict.mixed .verdict-title { color: #fbbf24; }
+
+    .verdict-sub {
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+
+    /* Score bar */
+    .score-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+
+    .score-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+
+    .bar-track {
+      height: 14px;
+      background: var(--surface2);
+      border-radius: 100px;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid var(--border);
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 100px;
+      transition: width 1s cubic-bezier(0.4,0,0.2,1);
+      width: 0%;
+    }
+
+    .bar-fill.ai    { background: linear-gradient(90deg, #f87171, #fb923c); }
+    .bar-fill.human { background: linear-gradient(90deg, #34d399, #10b981); }
+    .bar-fill.mixed { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+
+    .score-pct {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-top: 0.4rem;
+    }
+
+    .score-pct.ai    { color: var(--ai); }
+    .score-pct.human { color: var(--human); }
+    .score-pct.mixed { color: #fbbf24; }
+
+    /* Signals grid */
+    .signals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.25rem;
+    }
+
+    .signal {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+    }
+
+    .signal-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-top: 5px;
+      flex-shrink: 0;
+    }
+
+    .signal-dot.high   { background: var(--ai); }
+    .signal-dot.medium { background: #fbbf24; }
+    .signal-dot.low    { background: var(--human); }
+
+    .signal-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.15rem;
+    }
+
+    .signal-val {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    /* Prompt inference */
+    .prompt-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.2rem;
+      font-size: 0.93rem;
+      line-height: 1.65;
+      color: var(--text);
+      white-space: pre-wrap;
+      font-style: italic;
+      position: relative;
+    }
+
+    .prompt-box::before {
+      content: '"';
+      position: absolute;
+      top: -0.5rem;
+      left: 1rem;
+      font-size: 3rem;
+      color: var(--accent);
+      opacity: 0.3;
+      font-style: normal;
+      line-height: 1;
+    }
+
+    .copy-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 0.35rem 0.8rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+      float: right;
+      margin-top: -0.1rem;
+    }
+
+    .copy-btn:hover { color: var(--text); border-color: var(--accent); }
+
+    /* Highlighted phrases */
+    .phrase-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+    }
+
+    .phrase-tag {
+      background: #f8717122;
+      border: 1px solid #f8717144;
+      color: #fca5a5;
+      font-size: 0.78rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 100px;
+      font-weight: 500;
+    }
+
+    .phrase-tag.none {
+      background: #34d39922;
+      border-color: #34d39944;
+      color: #6ee7b7;
+    }
+
+    /* Reset */
+    .reset-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.88rem;
+      padding: 0.6rem 1.4rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+      display: block;
+      margin: 0 auto;
+    }
+
+    .reset-btn:hover { color: var(--text); border-color: var(--accent); }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.78rem;
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="badge">AI Detection Engine</div>
+    <h1>Is This AI-Written?</h1>
+    <p>Paste any text below. We'll analyze it for AI patterns and reconstruct the likely prompt used to generate it.</p>
+  </header>
+
+  <!-- Input -->
+  <div class="card">
+    <div class="card-label">Paste Text to Analyze</div>
+    <textarea id="inputText" placeholder="Paste the text you want to check here... (minimum 50 characters for best results)"></textarea>
+    <div class="char-count"><span id="charCount">0</span> characters</div>
+  </div>
+
+  <button class="btn" id="analyzeBtn" onclick="analyze()">Analyze Text</button>
+
+  <!-- Results -->
+  <div id="results">
+    <br />
+
+    <!-- Verdict -->
+    <div id="verdictBanner" class="verdict">
+      <div class="verdict-icon" id="verdictIcon"></div>
+      <div>
+        <div class="verdict-label" id="verdictLabel"></div>
+        <div class="verdict-title" id="verdictTitle"></div>
+        <div class="verdict-sub" id="verdictSub"></div>
+      </div>
+    </div>
+
+    <!-- Score -->
+    <div class="card">
+      <div class="card-label">AI Probability Score</div>
+      <div class="score-labels">
+        <span>Human</span>
+        <span>AI-Generated</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill" id="barFill"></div>
+      </div>
+      <div class="score-pct" id="scorePct"></div>
+    </div>
+
+    <!-- Signals -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+        <div class="card-label" style="margin:0;">Detection Signals</div>
+      </div>
+      <div class="signals-grid" id="signalsGrid"></div>
+    </div>
+
+    <!-- AI Phrases -->
+    <div class="card" id="phrasesCard">
+      <div class="card-label">AI Marker Phrases Detected</div>
+      <div class="phrase-list" id="phraseList"></div>
+    </div>
+
+    <!-- Inferred Prompt -->
+    <div class="card" id="promptCard">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+        <div class="card-label" style="margin:0;">Reconstructed Prompt</div>
+        <button class="copy-btn" onclick="copyPrompt()">Copy</button>
+      </div>
+      <div class="prompt-box" id="promptBox"></div>
+      <p style="font-size:0.78rem;color:var(--muted);margin-top:0.75rem;">
+        Based on topic extraction, content structure, and writing style analysis.
+      </p>
+    </div>
+
+    <button class="reset-btn" onclick="reset()">Analyze Another Text</button>
+  </div>
+
+  <footer>
+    Heuristic analysis — not 100% guaranteed. Works best on longer samples (200+ words).
+  </footer>
+</div>
+
+<script>
+// ─── AI Marker Phrases ────────────────────────────────────────────────────────
+const AI_PHRASES = [
+  "as an ai","i'd be happy to","i'd be glad to","certainly!","certainly,",
+  "absolutely!","absolutely,","of course!","of course,","delve into",
+  "delve deeper","i cannot","i can't provide","i apologize","i'm sorry, but",
+  "it's important to note","it is important to note","it's worth noting",
+  "it is worth noting","in conclusion","in summary","in this essay",
+  "it's crucial","it is crucial","this comprehensive","dive deep",
+  "multifaceted","nuanced approach","tapestry of","let's explore",
+  "let us explore","first and foremost","furthermore,","moreover,",
+  "nevertheless,","in the realm of","embark on","i hope this helps",
+  "feel free to ask","don't hesitate to","as a language model",
+  "as an ai assistant","to summarize","to conclude","in essence,",
+  "it goes without saying","needless to say","without a doubt",
+  "it's fascinating","it is fascinating","revolutionize",
+  "paradigm shift","game-changer","cutting-edge","state-of-the-art",
+  "key takeaway","at the end of the day","moving forward","going forward",
+  "best practices","in today's","in the modern","in recent years",
+  "when it comes to","it's essential to","it is essential to",
+  "plays a crucial role","plays a vital role","a wide range of",
+  "a variety of","it's important to","it is important to",
+  "this article will","this post will","we will explore","we will discuss",
+  "let's dive","let us dive","by the end of","by the time",
+  "in this article","in this post","in this guide","in this tutorial",
+  "step by step","step-by-step guide","comprehensive guide",
+  "whether you're","whether you are","can be challenging",
+  "a great way to","one of the most","some of the most",
+  "it's no secret","it is no secret","the fact that","the key to",
+  "on the other hand","all in all","overall,","ultimately,",
+  "in other words","in short,","to put it simply","simply put,",
+  "not only that","what's more","what is more","as a result,",
+  "due to this","because of this","with that said","with that being said",
+  "having said that","that being said","needless to say",
+  "rest assured","it's safe to say","it is safe to say",
+  "so, without further ado","without further ado"
+];
+
+// ─── Single AI-Overused Words ─────────────────────────────────────────────────
+const AI_WORDS = new Set([
+  "utilize","utilizes","utilized","utilizing","leverage","leverages","leveraged",
+  "leveraging","facilitate","facilitates","facilitated","facilitating",
+  "robust","comprehensive","crucial","essential","paramount","fundamental",
+  "significant","notable","evident","apparent","pertinent","optimal","holistic",
+  "iterative","streamline","streamlines","streamlined","underscore","underscores",
+  "underscored","elucidate","elucidates","elucidated","delineate","delineates",
+  "accentuate","accentuates","illuminate","illuminates","illuminated",
+  "ascertain","ascertains","endeavor","endeavors","endeavoring","endeavoured",
+  "pivotal","imperative","nuanced","multifaceted","encompass","encompasses",
+  "encompassed","embody","embodies","embodies","emphasize","emphasizes",
+  "prioritize","prioritizes","maximize","maximizes","minimize","minimizes",
+  "implement","implements","implemented","implementing","enhance","enhances",
+  "enhanced","enhancing","ensure","ensures","ensured","ensuring",
+  "foster","fosters","fostered","fostering","promote","promotes","promoted",
+  "promoting","provide","provides","provided","providing","require","requires",
+  "required","requiring","consider","considers","considered","considering",
+  "demonstrate","demonstrates","demonstrated","demonstrating","represent",
+  "represents","represented","representing","integrate","integrates",
+  "integrated","integrating","acknowledge","acknowledges","acknowledged",
+  "acknowledge","generate","generates","generated","generating",
+  "optimize","optimizes","optimized","optimizing","tailored","curated",
+  "granular","actionable","scalable","seamless","synergize","synergizes",
+  "impactful","transformative","innovative","groundbreaking","revolutionary",
+  "dynamic","proactive","strategic","tactical","leverage","synergy",
+  "ecosystem","framework","paradigm","landscape","stakeholder","stakeholders",
+  "deliverables","bandwidth","circle back","deep dive","low-hanging",
+  "touch base","takeaways","empower","empowers","empowered","empowering"
+]);
+
+// ─── AI Opening Patterns ──────────────────────────────────────────────────────
+const AI_OPENINGS = [
+  /^in today's (rapidly |ever-|fast-)?/i,
+  /^in the (modern|digital|current|contemporary)/i,
+  /^(as we|as society|as technology)/i,
+  /^the (world|landscape|field|realm) of/i,
+  /^when (it comes to|considering|thinking about)/i,
+  /^(understanding|exploring|examining|navigating)/i,
+  /^(whether you|whether you're)/i,
+  /^in an? (era|age|world|time) (of|where)/i,
+  /^(it is|it's) (no secret|widely|commonly|well)/i,
+  /^(one of|some of) the (most|key|main|primary)/i,
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const sentences = t => t.match(/[^.!?]+[.!?]+/g) || [t];
+const words     = t => t.toLowerCase().match(/\b[a-z']+\b/g) || [];
+
+function avgSentenceLen(text) {
+  const s = sentences(text);
+  if (!s.length) return 0;
+  const lens = s.map(x => words(x).length);
+  return lens.reduce((a,b)=>a+b,0) / lens.length;
+}
+
+function burstiness(text) {
+  const s = sentences(text);
+  if (s.length < 3) return null; // not enough data
+  const lens = s.map(x => words(x).length);
+  const avg = lens.reduce((a,b)=>a+b,0)/lens.length;
+  const variance = lens.reduce((a,b)=>a+Math.pow(b-avg,2),0)/lens.length;
+  return Math.sqrt(variance);
+}
+
+function aiWordDensity(text) {
+  const w = words(text);
+  if (!w.length) return 0;
+  const hits = w.filter(x => AI_WORDS.has(x));
+  return { count: hits.length, density: hits.length / w.length, found: [...new Set(hits)] };
+}
+
+function transitionDensity(text) {
+  const w = words(text);
+  if (!w.length) return 0;
+  const TRANSITIONS = ["however","therefore","furthermore","moreover",
+    "additionally","consequently","nevertheless","nonetheless","accordingly",
+    "subsequently","conversely","alternatively","specifically","notably",
+    "importantly","significantly","essentially","ultimately","overall"];
+  const count = w.filter(x => TRANSITIONS.includes(x)).length;
+  return count / w.length;
+}
+
+function detectAIPhrases(text) {
+  const lower = text.toLowerCase();
+  return AI_PHRASES.filter(p => lower.includes(p));
+}
+
+function detectAIOpenings(text) {
+  const trimmed = text.trim();
+  return AI_OPENINGS.some(rx => rx.test(trimmed));
+}
+
+function passiveVoiceDensity(text) {
+  const s = sentences(text);
+  const PASSIVE = /\b(is|are|was|were|be|been|being)\s+\w+ed\b/gi;
+  const count = s.filter(x => PASSIVE.test(x)).length;
+  return count / Math.max(s.length, 1);
+}
+
+function avgWordLen(text) {
+  const w = words(text);
+  if (!w.length) return 0;
+  return w.reduce((a,b)=>a+b.length,0) / w.length;
+}
+
+// ─── Main Scorer ──────────────────────────────────────────────────────────────
+function scoreText(text) {
+  const wordCount = words(text).length;
+  const sentCount = sentences(text).length;
+  const avg = avgSentenceLen(text);
+  const burst = burstiness(text);          // null if < 3 sentences
+  const trans = transitionDensity(text);
+  const passive = passiveVoiceDensity(text);
+  const aiPhrases = detectAIPhrases(text);
+  const aiWords = aiWordDensity(text);
+  const hasAIOpening = detectAIOpenings(text);
+  const avgWL = avgWordLen(text);
+
+  let score = 0;
+  const signals = [];
+
+  // ── 1. AI Signature Phrases (30%) ──────────────────────────────────────────
+  // Each phrase is a strong signal; cap at 3 for full weight
+  let phraseScore = Math.min(aiPhrases.length * 28, 85);
+  score += phraseScore * 0.30;
+  signals.push({
+    name: "AI Signature Phrases",
+    val: `${aiPhrases.length} detected`,
+    level: aiPhrases.length > 1 ? "high" : aiPhrases.length > 0 ? "medium" : "low",
+    note: aiPhrases.length > 1 ? "Strong AI markers" : aiPhrases.length > 0 ? "Some markers present" : "None found"
+  });
+
+  // ── 2. AI-Overused Words (28%) ──────────────────────────────────────────────
+  // density > 3% = very AI-like; 1-3% = suspicious; < 1% = normal
+  const wd = aiWords.density;
+  let wordScore = 0;
+  if (wd > 0.06)       wordScore = 95;
+  else if (wd > 0.04)  wordScore = 80;
+  else if (wd > 0.025) wordScore = 65;
+  else if (wd > 0.012) wordScore = 45;
+  else if (wd > 0.005) wordScore = 25;
+  else                 wordScore = 8;
+  score += wordScore * 0.28;
+  signals.push({
+    name: "AI-Overused Words",
+    val: `${aiWords.count} found (${(wd*100).toFixed(1)}% density)`,
+    level: wd > 0.03 ? "high" : wd > 0.01 ? "medium" : "low",
+    note: aiWords.count > 0
+      ? `"${aiWords.found.slice(0,3).join('", "')}"`
+      : "None detected"
+  });
+
+  // ── 3. Sentence Variation / Burstiness (18%) ────────────────────────────────
+  if (burst !== null) {
+    let burstScore = 0;
+    if (burst < 3)       burstScore = 92;
+    else if (burst < 5)  burstScore = 75;
+    else if (burst < 8)  burstScore = 48;
+    else if (burst < 12) burstScore = 22;
+    else                 burstScore = 8;
+    score += burstScore * 0.18;
+    signals.push({
+      name: "Sentence Variation",
+      val: `Std dev: ${burst.toFixed(1)} words`,
+      level: burst < 5 ? "high" : burst < 9 ? "medium" : "low",
+      note: burst < 5 ? "Very uniform — AI pattern" : burst < 9 ? "Moderate variation" : "Natural human variation"
+    });
+  } else {
+    // Short text — can't measure; use neutral baseline
+    score += 45 * 0.18;
+    signals.push({
+      name: "Sentence Variation",
+      val: "Too short to measure",
+      level: "medium",
+      note: "Need 3+ sentences for analysis"
+    });
+  }
+
+  // ── 4. AI Opening Pattern (10%) ─────────────────────────────────────────────
+  let openScore = hasAIOpening ? 88 : 12;
+  score += openScore * 0.10;
+  signals.push({
+    name: "AI Opening Pattern",
+    val: hasAIOpening ? "Detected" : "Not detected",
+    level: hasAIOpening ? "high" : "low",
+    note: hasAIOpening ? "Starts with common AI framing" : "No AI opening detected"
+  });
+
+  // ── 5. Transition Word Density (8%) ─────────────────────────────────────────
+  let transScore = 0;
+  if (trans > 0.02)       transScore = 85;
+  else if (trans > 0.01)  transScore = 55;
+  else if (trans > 0.004) transScore = 30;
+  else                    transScore = 10;
+  score += transScore * 0.08;
+  signals.push({
+    name: "Transition Words",
+    val: `${(trans * 100).toFixed(2)}% of text`,
+    level: trans > 0.018 ? "high" : trans > 0.008 ? "medium" : "low",
+    note: trans > 0.018 ? "Heavy usage — AI pattern" : "Normal usage"
+  });
+
+  // ── 6. Avg Word Length / Formality (6%) ─────────────────────────────────────
+  // AI tends toward longer, Latinate words: avg ~5.2-5.8 chars
+  let formalScore = 0;
+  if (avgWL > 5.5)       formalScore = 75;
+  else if (avgWL > 5.0)  formalScore = 55;
+  else if (avgWL > 4.5)  formalScore = 35;
+  else                   formalScore = 15;
+  score += formalScore * 0.06;
+  signals.push({
+    name: "Word Formality",
+    val: `Avg ${avgWL.toFixed(1)} chars/word`,
+    level: avgWL > 5.4 ? "high" : avgWL > 4.9 ? "medium" : "low",
+    note: avgWL > 5.4 ? "Formal/Latinate — AI-typical" : "Normal word length"
+  });
+
+  // Cap and clamp
+  score = Math.round(Math.min(Math.max(score, 2), 98));
+
+  return { score, signals, aiPhrases, aiWords, wordCount, sentCount, shortText: burst === null };
+}
+
+// ─── Topic Extraction ─────────────────────────────────────────────────────────
+const STOPWORDS = new Set(["the","a","an","and","or","but","in","on","at","to",
+  "for","of","with","by","from","is","are","was","were","be","been","being",
+  "have","has","had","do","does","did","will","would","could","should","may",
+  "might","must","can","this","that","these","those","i","you","he","she","it",
+  "we","they","my","your","his","her","its","our","their","what","which","who",
+  "when","where","how","why","if","then","than","so","as","not","no","nor",
+  "very","also","just","more","most","some","any","all","both","each","few",
+  "many","much","other","such","same","own","up","out","about","into","over",
+  "after","before","between","through","during","however","therefore",
+  "furthermore","moreover","additionally"]);
+
+function topWords(text, n=5) {
+  const w = words(text);
+  const freq = {};
+  for (const word of w) {
+    if (word.length < 3 || STOPWORDS.has(word)) continue;
+    freq[word] = (freq[word]||0)+1;
+  }
+  return Object.entries(freq)
+    .sort((a,b)=>b[1]-a[1])
+    .slice(0,n)
+    .map(([w])=>w);
+}
+
+function detectFormat(text) {
+  const lower = text.toLowerCase();
+  if (lower.match(/\bfunction\b|\bclass\b|\breturn\b|\bconst\b|\bvar\b|\bdef\b/)) return "code";
+  if (lower.match(/\bonce upon a time\b|\bthe story\b|\bnarrative\b|\bcharacter\b|\bplot\b/)) return "story";
+  if (lower.match(/\bhow to\b|\bstep \d\b|\bfirst[,:]?\s|\bsecond[,:]?\s|\b1\.\s|\b2\.\s/)) return "howto";
+  if (lower.match(/\bargue\b|\bthesis\b|\bparagraph\b|\bessay\b|\bdiscuss\b|\banalyz/)) return "essay";
+  if (lower.match(/\bdear\b|\bsincerely\b|\bregards\b|\bhope this email\b/)) return "email";
+  if (lower.match(/^#+\s|^\*\s|\*\*/m)) return "blog";
+  if (lower.match(/\bsummar[iy]\b|\boverview\b|\bbrief\b|\bshort\b/)) return "summary";
+  if (lower.match(/\badvantages?\b|\bdisadvantages?\b|\bpros?\b|\bcons?\b|\bbenefits?\b/)) return "comparison";
+  return "essay";
+}
+
+function detectTone(text) {
+  const lower = text.toLowerCase();
+  if (lower.match(/\bformal\b|\bacademic\b|\bscholarly\b|\bprofessional\b/)) return "formal";
+  if (lower.match(/\!|lol|haha|wow|omg|cool|awesome/)) return "casual";
+  if (lower.match(/\btechnical\b|\bimplementat|\barchitect|\bframework\b|\bsystem\b/)) return "technical";
+  return "informative";
+}
+
+function inferPrompt(text, score) {
+  const topics = topWords(text, 6);
+  const fmt = detectFormat(text);
+  const tone = detectTone(text);
+  const sentLen = sentences(text).length;
+
+  const mainTopic = topics.slice(0,2).join(" and ") || "this topic";
+  const extraTopics = topics.slice(2,5).join(", ");
+
+  let promptType = "";
+  let length = sentLen < 8 ? "a brief" : sentLen < 20 ? "a detailed" : "a comprehensive";
+
+  if (fmt === "howto") {
+    promptType = `Write ${length} step-by-step guide on how to ${mainTopic}.`;
+  } else if (fmt === "story") {
+    promptType = `Write ${length} story about ${mainTopic}.`;
+  } else if (fmt === "email") {
+    promptType = `Write ${length} professional email about ${mainTopic}.`;
+  } else if (fmt === "comparison") {
+    promptType = `What are the pros and cons of ${mainTopic}? Provide ${length} comparison.`;
+  } else if (fmt === "summary") {
+    promptType = `Provide ${length} summary of ${mainTopic}.`;
+  } else if (fmt === "code") {
+    promptType = `Write code that implements ${mainTopic}. Explain how it works.`;
+  } else if (fmt === "blog") {
+    promptType = `Write ${length} blog post about ${mainTopic}.`;
+  } else {
+    promptType = `Write ${length} essay about ${mainTopic}.`;
+  }
+
+  let extras = "";
+  if (extraTopics) extras += ` Cover aspects like ${extraTopics}.`;
+  if (tone === "formal" || tone === "technical") extras += " Use a professional, formal tone.";
+  if (tone === "casual") extras += " Keep it conversational and engaging.";
+  if (sentLen > 15) extras += " Provide thorough explanations with examples.";
+
+  return promptType + extras;
+}
+
+// ─── UI ───────────────────────────────────────────────────────────────────────
+const inputEl = document.getElementById("inputText");
+const charEl  = document.getElementById("charCount");
+
+inputEl.addEventListener("input", () => {
+  charEl.textContent = inputEl.value.length;
+});
+
+function analyze() {
+  const text = inputEl.value.trim();
+  if (text.length < 50) {
+    alert("Please enter at least 50 characters for accurate analysis.");
+    return;
+  }
+
+  const btn = document.getElementById("analyzeBtn");
+  btn.disabled = true;
+  btn.textContent = "Analyzing...";
+
+  setTimeout(() => {
+    const { score, signals, aiPhrases, aiWords, wordCount, sentCount, shortText } = scoreText(text);
+
+    // Verdict
+    const banner  = document.getElementById("verdictBanner");
+    const icon    = document.getElementById("verdictIcon");
+    const label   = document.getElementById("verdictLabel");
+    const title   = document.getElementById("verdictTitle");
+    const sub     = document.getElementById("verdictSub");
+    const pct     = document.getElementById("scorePct");
+    const bar     = document.getElementById("barFill");
+
+    let cls, iconChar, labelTxt, titleTxt, subTxt;
+
+    const shortNote = shortText ? " (short sample — add more text for higher confidence)" : "";
+    if (score >= 70) {
+      cls = "ai";
+      iconChar = "🤖";
+      labelTxt = "Likely AI-Generated";
+      titleTxt = "AI-Written Text Detected";
+      subTxt   = `${score}% probability this was generated by an AI language model.${shortNote}`;
+    } else if (score >= 40) {
+      cls = "mixed";
+      iconChar = "🔍";
+      labelTxt = "Inconclusive";
+      titleTxt = "Mixed or Uncertain";
+      subTxt   = `${score}% AI probability — could be human-edited AI output or a formal writer.${shortNote}`;
+    } else {
+      cls = "human";
+      iconChar = "✍️";
+      labelTxt = "Likely Human-Written";
+      titleTxt = "Appears to Be Human";
+      subTxt   = `${score}% AI probability — writing patterns suggest a human author.${shortNote}`;
+    }
+
+    banner.className = `verdict ${cls}`;
+    icon.textContent = iconChar;
+    label.textContent = labelTxt;
+    title.textContent = titleTxt;
+    sub.textContent   = subTxt;
+
+    pct.textContent = `${score}% AI`;
+    pct.className   = `score-pct ${cls}`;
+
+    bar.className = `bar-fill ${cls}`;
+    setTimeout(() => { bar.style.width = score + "%"; }, 50);
+
+    // Signals
+    const grid = document.getElementById("signalsGrid");
+    grid.innerHTML = signals.map(s => `
+      <div class="signal">
+        <div class="signal-dot ${s.level}"></div>
+        <div>
+          <div class="signal-name">${s.name}</div>
+          <div class="signal-val">${s.val}</div>
+          <div class="signal-val" style="color:var(--muted);margin-top:2px">${s.note}</div>
+        </div>
+      </div>
+    `).join("");
+
+    // Phrases + AI words
+    const phraseList = document.getElementById("phraseList");
+    const allMarkers = [
+      ...aiPhrases.map(p => ({ text: p, type: "phrase" })),
+      ...aiWords.found.map(w => ({ text: w, type: "word" }))
+    ];
+    if (allMarkers.length) {
+      phraseList.innerHTML = allMarkers.map(m =>
+        `<span class="phrase-tag" title="${m.type === 'word' ? 'AI-overused word' : 'AI signature phrase'}">${m.text}</span>`
+      ).join("");
+    } else {
+      phraseList.innerHTML = `<span class="phrase-tag none">None detected — good sign!</span>`;
+    }
+
+    // Inferred prompt (only show if score >= 35)
+    const promptCard = document.getElementById("promptCard");
+    const promptBox  = document.getElementById("promptBox");
+    if (score >= 35) {
+      const inferred = inferPrompt(text, score);
+      promptBox.textContent = inferred;
+      promptCard.style.display = "";
+    } else {
+      promptCard.style.display = "none";
+    }
+
+    document.getElementById("results").style.display = "block";
+    document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
+
+    btn.disabled = false;
+    btn.textContent = "Analyze Text";
+  }, 600);
+}
+
+function copyPrompt() {
+  const txt = document.getElementById("promptBox").textContent;
+  navigator.clipboard.writeText(txt).then(() => {
+    const b = document.querySelector(".copy-btn");
+    b.textContent = "Copied!";
+    setTimeout(() => b.textContent = "Copy", 1800);
+  });
+}
+
+function reset() {
+  document.getElementById("results").style.display = "none";
+  document.getElementById("inputText").value = "";
+  document.getElementById("charCount").textContent = "0";
+  document.getElementById("barFill").style.width = "0%";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// Allow Enter key on textarea (keep default), but Ctrl+Enter to analyze
+inputEl.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") analyze();
+});
+</script>
+</body>
+</html>
