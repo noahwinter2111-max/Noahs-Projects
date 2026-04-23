@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "arcade",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["/Users/noahwinter/Desktop/Projects/square_root_game/server.py"],
-      "port": 5500
+      "name": "apple-site",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": ["-c", "cd /tmp && exec /usr/bin/python3 -c 'import socketserver,http.server;D=\"/Users/noahwinter/Desktop/Projects/square_root_game\";H=type(\"H\",(http.server.SimpleHTTPRequestHandler,),{\"__init__\":lambda s,*a,**k:http.server.SimpleHTTPRequestHandler.__init__(s,*a,directory=D,**k),\"log_message\":lambda *a:None});socketserver.TCPServer((\"\",8899),H).serve_forever()'"],
+      "port": 8899
     }
   ]
 }
