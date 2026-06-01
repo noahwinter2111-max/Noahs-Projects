@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Stonks — Learn to Invest with Zero Risk</title>
-<meta name="description" content="The #1 paper trading simulator. Practice investing with $100K virtual cash, real market data, and AI-powered insights. No risk, all reward.">
-<meta property="og:title" content="Stonks — Learn to Invest with Zero Risk">
-<meta property="og:description" content="Practice investing with $100K virtual cash and real market data. Built for beginners.">
+<title>StockVision — AI-Powered Paper Trading</title>
+<meta name="description" content="AI-powered paper trading platform. Practice investing with virtual cash, real-time market data, and intelligent analytics. Zero risk.">
+<meta property="og:title" content="StockVision — AI-Powered Paper Trading">
+<meta property="og:description" content="The intelligent paper trading platform. Real-time data, AI analytics, and risk-free practice for the next generation of investors.">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='fg' x1='0' y1='0' x2='32' y2='32'><stop stop-color='%2330D5C8'/><stop offset='1' stop-color='%23BF5AF2'/></linearGradient></defs><rect width='32' height='32' rx='8' fill='url(%23fg)'/><path d='M6 23L10 18L14 20L18 12L22 14L26 7' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='26' cy='7' r='2' fill='white'/><path d='M23 7L26 7L26 10' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>">
@@ -394,6 +394,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text'
 </head>
 <body>
 <div class="ambient"><i class="a"></i><i class="b"></i><i class="c"></i></div>
+<canvas id="particles" class="particle-canvas"></canvas>
 <div class="lbar" id="lb" style="width:0"></div>
 <div class="shell">
 
@@ -415,7 +416,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text'
       <circle cx="26" cy="7" r="4" fill="#fff" opacity=".15"/>
       <path d="M23.5 7L26 7L26 9.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/>
     </svg>
-    <span>Stonks</span>
+    <span>StockVision</span>
   </div>
   <div class="tabs">
     <button class="on" data-v="market">Market</button>
@@ -460,8 +461,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text'
           <circle cx="26" cy="7" r="4" fill="#fff" opacity=".15"/>
           <path d="M23.5 7L26 7L26 9.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/>
         </svg>
-        <h2 id="splashTitle">Welcome to Stonks</h2>
-        <p id="splashMsg">Track real stock prices from the market and practice trading with virtual money. No real money, no risk — just learning.</p>
+        <h2 id="splashTitle">Welcome to StockVision</h2>
+        <p id="splashMsg">Real-time market data, intelligent analytics, and risk-free paper trading — all in one platform.</p>
         <div class="splash-features">
           <div class="splash-feat"><div class="feat-icon">📊</div><div class="feat-title">Live Prices</div><div class="feat-desc">Real data from Yahoo Finance, updated every 15 seconds</div></div>
           <div class="splash-feat"><div class="feat-icon">💰</div><div class="feat-title">Paper Trading</div><div class="feat-desc">Buy & sell with virtual cash to practice without risk</div></div>
@@ -501,8 +502,8 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text'
       <circle cx="26" cy="7" r="4" fill="#fff" opacity=".15"/>
       <path d="M23.5 7L26 7L26 9.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/>
     </svg>
-    <h1>Stonks</h1>
-    <div class="ob-tag">Learn to invest with zero risk</div>
+    <h1>StockVision</h1>
+    <div class="ob-tag">Intelligent paper trading, powered by real-time data</div>
     <div class="ob-stats">
       <div class="ob-stat"><div class="ob-sv">19</div><div class="ob-sl">Live Stocks</div></div>
       <div class="ob-stat"><div class="ob-sv">9</div><div class="ob-sl">Time Ranges</div></div>
