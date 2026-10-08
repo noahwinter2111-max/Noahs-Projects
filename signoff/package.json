@@ -1,0 +1,1 @@
+{"name":"signoff","private":true,"dependencies":{"@anthropic-ai/sdk":"^0.132.0","@vercel/blob":"^2"}}

@@ -1,0 +1,4 @@
+node_modules
+.env*
+ADMIN_LINK.txt
+.vercel
