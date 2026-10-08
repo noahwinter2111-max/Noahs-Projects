@@ -412,7 +412,7 @@ footer .pg{font-family:var(--mono);letter-spacing:.18em;font-size:12px}
       <a class="btn-l" href="#app">Try the prototype</a>
       <button class="btn-l quiet" onclick="openSettings()">Settings</button>
     </div>
-    <div class="note" id="modeNote">Demo mode: the agent is scripted and every partner is simulated.</div>
+    <div class="note" id="modeNote">Demo mode: the agent is scripted. Every partner action takes the real API path.</div>
   </section>
 </div></div>
 
@@ -582,8 +582,8 @@ footer .pg{font-family:var(--mono);letter-spacing:.18em;font-size:12px}
     <div class="f" id="keyRow"><label>Signoff AI</label><small id="aiStatus">Checking…</small>
       <label style="margin-top:10px">Or use your own Anthropic key</label><input id="sKey" type="password" placeholder="sk-ant-… (optional)"><small>Only if you want to bypass the Signoff server. Stored in this browser only.</small></div>
     <div class="f"><label>Partners</label>
-      <div class="seg"><button type="button" id="segSim" onclick="setPartners('sim')">Simulated</button><button type="button" id="segPLive" onclick="setPartners('live')">Live (placeholders)</button></div>
-      <small>Live sends every partner action to the Signoff server. Each partner is a placeholder until its keys are added there, so nothing goes through yet.</small>
+      <div class="seg"><button type="button" id="segPLive" onclick="setPartners('live')">Real APIs</button><button type="button" id="segSim" onclick="setPartners('sim')">Simulated walkthrough</button></div>
+      <small>Real APIs is the default: every action goes to the partner's actual API through the Signoff server. A partner without keys stops there and says so. Simulated fakes the partners so you can see the whole journey.</small>
       <div class="pstatus" id="partnerStatus"><small>Checking…</small></div>
     </div>
     <div class="f"><label>Daily payment limit without a passkey ($)</label><input id="sLimit" type="number" value="2000"></div>
@@ -598,7 +598,7 @@ footer .pg{font-family:var(--mono);letter-spacing:.18em;font-size:12px}
 const STAGES=['intake','identity','formation','bank','books','email','run','taxes'];
 const STAGE_LABEL={intake:'Intake',identity:'Identity',formation:'Form',bank:'Bank',books:'Books',email:'Email',run:'Run',taxes:'Taxes'};
 const fresh=()=>({
-  mode:'demo',partners:'sim',key:'',name:'',phone:'',limit:2000,stage:'intake',
+  mode:'demo',partners:'live',key:'',name:'',phone:'',limit:2000,stage:'intake',
   biz:{desc:'',state:'',entity:'LLC',name:'',venture:false},
   identity:{verified:false},
   company:{status:'none',filedAt:null,ein:null},
@@ -693,7 +693,7 @@ function renderCtx(){
     if(!S.log.length)h+=`<div class="empty">Nothing yet. Every tool call the agent makes is written here, including the ones the gate refused.</div>`;
     S.log.slice().reverse().slice(0,25).forEach(e=>{const o=e.outcome||'…';const tag=o==='placeholder'?'<span class="tag warn">placeholder</span>':o==='denied'?'<span class="tag warn">refused</span>':o==='declined'?'<span class="tag">declined</span>':o==='approved'?'<span class="tag good">approved</span>':'<span class="tag">ran</span>';h+=`<div class="tile"><span class="tb"><b>${esc(e.tool.replace(/_/g,' '))}${tag}</b><small>${e.at} · tier ${e.g.tier??'–'}${e.g.deny?' · '+esc(e.g.deny):''}</small></span></div>`})}
   c.innerHTML=h;animateBalance()}
-function renderAll(){renderNav();renderStepper();renderCtx();$('avatar').textContent=(S.name||'Owner').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();$('ownerName').textContent=S.name||'Owner';$('livePill').className='live '+(S.mode==='live'?'':'demo');$('livePillText').textContent=S.mode==='live'?'Running on Claude':'Scripted demo';$('urlbar').textContent=S.biz.name?S.biz.name+' '+S.biz.entity:'Getting started';$('modeNote').textContent=(S.mode==='live'?'Live mode: the conversation runs on Signoff AI. ':'Demo mode: the agent is scripted. ')+(S.partners==='live'?'Partners: live placeholders, nothing is connected yet, so every partner action stops at the server.':'Partners: simulated.')}
+function renderAll(){renderNav();renderStepper();renderCtx();$('avatar').textContent=(S.name||'Owner').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();$('ownerName').textContent=S.name||'Owner';$('livePill').className='live '+(S.mode==='live'?'':'demo');$('livePillText').textContent=S.mode==='live'?'Running on Claude':'Scripted demo';$('urlbar').textContent=S.biz.name?S.biz.name+' '+S.biz.entity:'Getting started';$('modeNote').textContent=(S.mode==='live'?'Live mode: the conversation runs on Signoff AI. ':'Demo mode: the agent is scripted. ')+(S.partners==='live'?'Every partner action takes the real API path. No partner has keys yet, so each one stops at the server instead of pretending.':'Partners: simulated for a walkthrough.')}
 function spark(){let b=0;const pts=[0].concat(S.bank.txns.map(t=>b+=t.amt));if(pts.length<2)pts.push(pts[0]);const max=Math.max(...pts,1),min=Math.min(...pts,0),W=268,H=44;const xy=pts.map((v,i)=>[i/(pts.length-1)*W,H-4-((v-min)/((max-min)||1))*(H-10)]);const d='M'+xy.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L');return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${d}"/></svg>`}
 let lastBal=null;function animateBalance(){const el=$('balCounter');if(!el)return;const to=S.bank.balance,from=lastBal===null?0:lastBal;if(from===to){lastBal=to;return}const t0=performance.now();(function f(now){const k=Math.min(1,(now-t0)/700),e=1-Math.pow(1-k,3);el.textContent=money(from+(to-from)*e);if(k<1)requestAnimationFrame(f);else lastBal=to})(t0)}
 function slug(s){return (s||'yourcompany').toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,18)||'yourcompany'}
@@ -800,21 +800,33 @@ async function runTool(tool,args={}){
   const wl=trace('Waiting for your sign-off on the card','wait');
   let result=null;const ok=await card({tier:g.tier,title,rows,label,onApprove:async()=>{traceOk(wl,g.tier>=3?'Approved and code verified':'Approved by you');if(S.partners==='live'){result=await execTool(tool,args);return}const cl=trace(`Sending to ${PARTNER[tool]||'the partner'}`);result=await execTool(tool,args);traceOk(cl,`${(PARTNER[tool]||'Partner').replace(/^./,c=>c.toUpperCase())} confirmed`)}});
   if(!ok)traceNo(wl,'Declined by you, nothing sent');
-  if(ok&&result&&result.error==='placeholder'){entry.outcome='placeholder';renderNav();if(S.currentModule==='activity')renderCtx();return{status:'placeholder',partner:result.partner,name:result.name}}
+  if(ok&&result&&result.error==='placeholder'){addMsg('ai',`Approved, and the request went to the Signoff server, but ${result.name} has no keys yet, so nothing happened. This is the real path: add the keys and the same tap does it for real.`);entry.outcome='placeholder';renderNav();if(S.currentModule==='activity')renderCtx();return{status:'placeholder',partner:result.partner,name:result.name}}
   entry.outcome=ok?'approved':'declined';renderNav();if(S.currentModule==='activity')renderCtx();
   return ok?{status:'approved',result}:{status:'declined'};
 }
 /* ===================== PARTNER GATEWAY (placeholders) ===================== */
 const PARTNER_ENDPOINT='https://signoff-three.vercel.app/api/partner';
 const PARTNER_OF={start_identity_check:'identity',file_formation:'formation',apply_ein:'formation',send_docs_to_bank:'bank',get_balance:'bank',pay:'bank',schedule_payment:'bank',set_aside_tax:'bank',issue_card:'bank',connect_books:'books',send_invoice:'books',pl_report:'books',connect_email:'email',list_inbox:'email',reply_email:'email',send_investor_update:'email',send_contract:'esign',issue_safe:'esign',book_travel:'travel',convert_to_corp:'formation'};
-const PARTNER_ACTION={send_docs_to_bank:'open_account',get_balance:'balance',pay:'pay',issue_card:'issue_card'};
+const PARTNER_ACTION={send_docs_to_bank:'open_account',get_balance:'balance'};
+const ownerId=()=>S.phone||S.name||'anon';
+/* the real arguments each partner API needs, built from app state */
+function partnerArgs(tool,a){const base={owner:ownerId(),owner_name:S.name||'Owner',company:S.biz.name,phone:S.phone};
+  switch(tool){
+    case 'send_docs_to_bank':return Object.assign(base,{name:S.biz.name,ein:S.company.ein,entity:S.biz.entity,state:S.company.foreign||S.biz.state,desc:S.biz.desc});
+    case 'start_identity_check':{const [first,...rest]=(S.name||'Owner').split(' ');return Object.assign(base,{first,last:rest.join(' ')})}
+    case 'file_formation':return Object.assign(base,{entity:S.biz.entity,name:S.biz.name,state:S.biz.state,owner:ownerId()});
+    case 'convert_to_corp':return Object.assign(base,{name:S.biz.name,home_state:S.biz.state});
+    case 'pay':return Object.assign(base,a,{routing:a.routing||'',account:a.account||''});
+    case 'book_travel':return Object.assign(base,a,{from:'AUS',depart:a.depart||new Date(Date.now()+7*864e5).toISOString().slice(0,10),return:a.return||new Date(Date.now()+9*864e5).toISOString().slice(0,10)});
+    case 'send_investor_update':return Object.assign(base,a,{recipients:S.investors.filter(i=>i.status==='funded'&&i.email).map(i=>i.email),body:`Cash ${money(S.bank.balance)}. Net income ${money(plData().net)}. Ask: ${a.ask}`});
+    default:return Object.assign(base,a)}}
 let partnerStatus=null;
 async function checkPartners(){try{const r=await fetch(PARTNER_ENDPOINT);partnerStatus=await r.json()}catch(e){partnerStatus={offline:true,partners:{}}}renderPartnerStatus();return partnerStatus}
 function renderPartnerStatus(){const el=$('partnerStatus');if(!el)return;if(!partnerStatus||partnerStatus.offline){el.innerHTML='<small>Could not reach the Signoff server from this file.</small>';return}el.innerHTML=Object.entries(partnerStatus.partners).map(([k,p])=>`<div class="pst"><span>${esc(p.name)}</span><span class="${p.configured?'ok':''}">${p.configured?'Connected':'Placeholder · needs '+p.needs.join(', ')}</span></div>`).join('')}
 async function partnerCall(partner,tool,args){const r=await fetch(PARTNER_ENDPOINT,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner,action:PARTNER_ACTION[tool]||tool,args})});const j=await r.json().catch(()=>({}));if(r.status===503)return{placeholder:true,name:j.name||partner,needs:j.needs||[]};if(!r.ok)return{error:j.message||j.error||r.statusText};return j}
 async function execTool(tool,a){
-  if(S.partners==='live'&&PARTNER_OF[tool]){const pn=PARTNER_OF[tool];const pl=trace(`Calling ${PARTNER[tool]||pn} through the Signoff server`);let r;try{r=await partnerCall(pn,tool,a)}catch(e){r={error:e.message}}
-    if(r.placeholder){traceNo(pl,`${esc(r.name)} is a placeholder: no keys on the server yet`);sys(`${r.name} is not connected. Placeholder until ${r.needs.join(' and ')} are added in Vercel.`);return{error:'placeholder',partner:pn,name:r.name}}
+  if(S.partners==='live'&&PARTNER_OF[tool]){const pn=PARTNER_OF[tool];const pl=trace(`Calling ${PARTNER[tool]||pn} through the Signoff server`);let r;try{r=await partnerCall(pn,tool,partnerArgs(tool,a))}catch(e){r={error:e.message}}
+    if(r.placeholder){traceNo(pl,`${esc(r.name)} is a placeholder: no keys on the server yet`);sys(`${r.name}: real API path, no keys yet. Needs ${r.needs.join(' and ')} in Vercel.`);return{error:'placeholder',partner:pn,name:r.name}}
     if(r.error){traceNo(pl,'Partner call failed');return{error:r.error}}
     traceOk(pl);return r}
   switch(tool){
@@ -985,7 +997,7 @@ function openSettings(){checkAI();checkPartners();$('sName').value=S.name;$('sPh
 function setModeUI(m){$('segDemo').classList.toggle('on',m==='demo');$('segLive').classList.toggle('on',m==='live');$('keyRow').style.display=m==='live'?'':'none';const pm=$('settings').dataset.partners||S.partners;$('segSim').classList.toggle('on',pm==='sim');$('segPLive').classList.toggle('on',pm==='live')}
 function setPartners(m){$('settings').dataset.partners=m;setModeUI($('settings').dataset.mode||S.mode)}
 function setMode(m){setModeUI(m);$('settings').dataset.mode=m}
-function saveSettings(){S.name=$('sName').value.trim();S.phone=$('sPhone').value.trim();S.key=$('sKey').value.trim();S.limit=Number($('sLimit').value)||2000;const m=$('settings').dataset.mode||S.mode;const changed=m!==S.mode;S.mode=m;const pm=$('settings').dataset.partners||S.partners;const pchanged=pm!==S.partners;S.partners=pm;save();if(pchanged)sys(pm==='live'?'Partners switched to live. Every partner is a placeholder on the server, so approvals will stop there until keys are added.':'Partners switched back to simulated.');$('settings').classList.remove('open');renderAll();if(changed)sys(m==='live'?(S.key?'Live mode on: Claude runs the conversation with your key. Partners stay simulated.':(aiStatus&&aiStatus.configured?'Live mode on: Signoff AI runs the conversation. Partners stay simulated.':'Live mode on, but Signoff AI is still a placeholder. Messages will explain until a key is added.')):'Demo mode on: scripted agent.')}
+function saveSettings(){S.name=$('sName').value.trim();S.phone=$('sPhone').value.trim();S.key=$('sKey').value.trim();S.limit=Number($('sLimit').value)||2000;const m=$('settings').dataset.mode||S.mode;const changed=m!==S.mode;S.mode=m;const pm=$('settings').dataset.partners||S.partners;const pchanged=pm!==S.partners;S.partners=pm;save();if(pchanged)sys(pm==='live'?'Partners switched to real APIs. Approvals go to the Signoff server and stop at any partner without keys.':'Partners switched to the simulated walkthrough.');$('settings').classList.remove('open');renderAll();if(changed)sys(m==='live'?(S.key?'Live mode on: Claude runs the conversation with your key. Partners stay simulated.':(aiStatus&&aiStatus.configured?'Live mode on: Signoff AI runs the conversation. Partners stay simulated.':'Live mode on, but Signoff AI is still a placeholder. Messages will explain until a key is added.')):'Demo mode on: scripted agent.')}
 function resetAll(){const keep={mode:S.mode,partners:S.partners,key:S.key,name:S.name,phone:S.phone,limit:S.limit};S=Object.assign(fresh(),keep);$('msgs').innerHTML='';$('settings').classList.remove('open');boot()}
 $('settings').addEventListener('click',e=>{if(e.target===$('settings'))$('settings').classList.remove('open')});
 function boot(){renderAll();addMsg('ai',`Hi${S.name?' '+S.name:''}. I'm Signoff. Tell me what you want to do as a business, in your own words, and I'll take you through setting it up: company, identity, bank, books and email. Nothing happens without your sign-off.`);setChips(["I'm building an AI that runs hospitals and will raise a seed round","I'm starting a rocket-launch company and need investors","I'm launching a humanoid-robot startup and raising $2M",'I run a lawn-care business on weekends'])}
