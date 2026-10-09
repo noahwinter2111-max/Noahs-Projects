@@ -824,11 +824,17 @@ let partnerStatus=null;
 async function checkPartners(){try{const r=await fetch(PARTNER_ENDPOINT);partnerStatus=await r.json()}catch(e){partnerStatus={offline:true,partners:{}}}renderPartnerStatus();return partnerStatus}
 function renderPartnerStatus(){const el=$('partnerStatus');if(!el)return;if(!partnerStatus||partnerStatus.offline){el.innerHTML='<small>Could not reach the Signoff server from this file.</small>';return}el.innerHTML=Object.entries(partnerStatus.partners).map(([k,p])=>`<div class="pst"><span>${esc(p.name)}</span><span class="${p.configured?'ok':''}">${p.configured?'Connected':'Placeholder · needs '+p.needs.join(', ')}</span></div>`).join('')}
 async function partnerCall(partner,tool,args){const r=await fetch(PARTNER_ENDPOINT,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({partner,action:PARTNER_ACTION[tool]||tool,args})});const j=await r.json().catch(()=>({}));if(r.status===503)return{placeholder:true,name:j.name||partner,needs:j.needs||[]};if(!r.ok)return{error:j.message||j.error||r.statusText};return j}
+/* setup steps keep the old simulated flow while their partner has no keys, so the bank account can still be opened and the rest tried; running-the-company actions stay strictly real */
+const SETUP_TOOLS={start_identity_check:1,file_formation:1,apply_ein:1,send_docs_to_bank:1,convert_to_corp:1};
+function partnerKeyed(pn){return !!(partnerStatus&&partnerStatus.partners&&partnerStatus.partners[pn]&&partnerStatus.partners[pn].configured)}
 async function execTool(tool,a){
+  if(S.partners==='live'&&PARTNER_OF[tool]&&SETUP_TOOLS[tool]&&!partnerKeyed(PARTNER_OF[tool])){trace(`${PARTNER[tool]||PARTNER_OF[tool]} has no keys yet: using the old simulated ${tool==='send_docs_to_bank'?'account opening':'step'} so the journey can continue`,'wait');return await execMock(tool,a)}
   if(S.partners==='live'&&PARTNER_OF[tool]){const pn=PARTNER_OF[tool];const pl=trace(`Calling ${PARTNER[tool]||pn} through the Signoff server`);let r;try{r=await partnerCall(pn,tool,partnerArgs(tool,a))}catch(e){r={error:e.message}}
     if(r.placeholder){traceNo(pl,`${esc(r.name)} is a placeholder: no keys on the server yet`);sys(`${r.name}: real API path, no keys yet. Needs ${r.needs.join(' and ')} in Vercel.`);return{error:'placeholder',partner:pn,name:r.name}}
     if(r.error){traceNo(pl,'Partner call failed');return{error:r.error}}
     traceOk(pl);return r}
+  return await execMock(tool,a)}
+async function execMock(tool,a){
   switch(tool){
     case 'get_state':return{stage:S.stage,identity:S.identity,company:S.company,bank:{status:S.bank.status,balance:S.bank.balance},books:S.books.connected,mail:S.mail.connected,business:S.biz};
     case 'get_balance':return{status:S.bank.status,balance:S.bank.balance,recent:S.bank.txns.slice(-5)};
@@ -1014,7 +1020,7 @@ async function joinWaitlist(e){e.preventDefault();const email=$('wlEmail').value
   return false}
 /* phone width: tapping a module opens its panel as a sheet */
 (function(){const w=document.getElementById('ctxwrap');if(!w||!document.querySelector('.frame'))return;document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!matchMedia('(max-width:680px)').matches)return;const lab=b.querySelector('.lab');document.getElementById('ctxTitle').textContent=lab?lab.textContent:'Panel';w.classList.add('open')});document.getElementById('composer').addEventListener('submit',()=>w.classList.remove('open'))})();
-load();boot();
+load();checkPartners();boot();
 </script>
 </body>
 </html>
