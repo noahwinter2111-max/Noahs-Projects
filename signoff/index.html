@@ -395,121 +395,75 @@ footer .pg{font-family:var(--mono);letter-spacing:.18em;font-size:12px}
 .toast.show{display:block}
 .toast b{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
 
-/* ---------- app: Claude-style chat ---------- */
-.frame{--cb:#F4F3EE;--cs:#EEECE4;--cw:#FFFFFF;--cr:#E4E2DA;--cr2:#D3D0C6;--ci:#1F1E1D;--cm:#75736C;--ca:#C96442;--ca2:#B4573A;--cu:#E8E6DF;--cg:#2E7D4F;--cy:#9A6519;--cx:#B3362F;
-  --ui:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
-  background:var(--cb);color:var(--ci);font-family:var(--ui);border:1px solid var(--cr);border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-.frame .chrome{font-family:var(--ui);font-size:13px;letter-spacing:0;text-transform:none;color:var(--cm);border-bottom:1px solid var(--cr);background:var(--cb)}
-.frame .chrome .url{font-family:var(--ui);font-weight:600;font-size:13.5px;letter-spacing:0;color:var(--ci)}
-.frame .chrome .live{font-family:var(--ui);letter-spacing:0;font-size:12.5px}
-.frame .chrome .live i{background:var(--cg)}.frame .chrome .live.demo i{background:var(--cr2)}
-.frame .side{background:var(--cs);border-right:1px solid var(--cr);padding:12px 10px}
-.frame .brand2{color:var(--ci);font-weight:600;font-size:15px;letter-spacing:0}
-.frame .nav{border-top:0;padding-top:4px}
-.frame .nav:before{font-family:var(--ui);font-size:11.5px;letter-spacing:0;text-transform:none;color:var(--cm);font-weight:500;padding:6px 10px 6px}
-.frame .nav button{border-radius:9px;padding:8px 10px;color:var(--ci)}
-.frame .nav button svg{color:var(--cm)}
-.frame .nav button .lab{font-weight:500;font-size:13.5px;color:var(--ci)}
-.frame .nav button .st{font-family:var(--ui);font-size:11.5px;letter-spacing:0;text-transform:none;color:var(--cm)}
-.frame .nav button:hover{background:#E6E4DC}
-.frame .nav button.active{background:#E1DFD6;box-shadow:none;color:var(--ci)}
-.frame .nav button.active .lab,.frame .nav button.active svg{color:var(--ci)}
-.frame .nav button .dot{background:var(--cr2)}.frame .nav button .dot.done{background:var(--cg)}.frame .nav button .dot.pending{background:var(--ca)}
-.frame .ring{border-top:1px solid var(--cr);padding-top:12px;margin-top:10px;color:var(--cm)}
-.frame .ring b{font-family:var(--ui);font-style:normal;font-weight:600;font-size:13.5px;color:var(--ci)}
-.frame .ring .bar{background:var(--cr);border-radius:3px}.frame .ring .bar i{background:var(--ca);border-radius:3px}
-.frame .side .foot{border-radius:10px;border:1px solid var(--cr);background:var(--cw);color:var(--ci)}
-.frame .side .foot small{color:var(--cm)}
-.frame .side .foot .avatar{background:var(--ca);color:#fff;border-radius:50%}
-.frame .stepper{gap:6px;padding:10px 16px;border-bottom:1px solid var(--cr);background:var(--cb)}
-.frame .step{font-family:var(--ui);font-size:11.5px;letter-spacing:0;text-transform:none;color:var(--cm);padding:4px 10px;border:1px solid transparent;border-radius:999px;flex:none;min-width:0}
-.frame .step.done{color:var(--cg);border-bottom-color:transparent;background:#E3EEE6}
-.frame .step.now{color:var(--ci);background:var(--cw);border-color:var(--cr2)}
-.frame .msgs{background:var(--cb);padding:24px 22px;gap:14px}
-.frame .m{border-radius:18px;font-size:15px;color:var(--ci)}
-.frame .row-ai{flex-direction:row;gap:10px;align-items:flex-start;max-width:86%}
-.frame .row-ai:before{content:"";flex:none;width:24px;height:24px;margin-top:2px;border-radius:50%;background:var(--cu) url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%232D5BFF%22/%3E%3Cpath d=%22M29.5 50 C34.6 46.2 44.5 44.5 46.5 52.5 C48.5 60.5 40.5 70 36.5 66.5 C32 62.5 46 44 56 36 C66 28 72 34 69 42 C66 50 55 61 62 60 C69 59 73 52 73 52%22 fill=%22none%22 stroke=%22%23fff%22 stroke-width=%228%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E") center/100% no-repeat}
-.frame .row-ai .m.ai{font-family:var(--serif);font-style:normal;font-size:16px;line-height:1.6;color:var(--ci);padding:0}
-.frame .m.me{background:var(--cu);color:var(--ci);border:0;border-right:0;padding:10px 15px;border-radius:18px 18px 4px 18px;max-width:72%}
-.frame .m.sys{font-family:var(--ui);font-size:12.5px;letter-spacing:0;color:var(--cm);background:transparent;border:0}
-.frame .m.err{background:#FBE9E7;color:#8A2A22;border-radius:12px}
-.frame .meta{display:none}
-.frame .typing{color:var(--cm)}.frame .typing i{background:var(--cm)}
-.frame .card{border-radius:14px;border:1px solid var(--cr);border-left:1px solid var(--cr);background:var(--cw);padding:16px 18px 16px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
-.frame .card.tier3{border-color:var(--ca);box-shadow:0 0 0 2px #F3DED5}
-.frame .card.info{background:var(--cw)}
-.frame .card h4{font-family:var(--ui);font-size:12.5px;letter-spacing:0;text-transform:none;color:var(--cm);font-weight:500;margin-bottom:8px}
-.frame .card h4 .ic{border-radius:7px;border-color:var(--cr);background:var(--cb)}
-.frame .card h4 .ic svg{stroke:var(--ci)}
-.frame .card h4 .badge{font-family:var(--ui);letter-spacing:0;text-transform:none;font-size:11.5px;color:var(--cm);background:var(--cb);border:1px solid var(--cr);border-radius:999px;padding:2px 8px}
-.frame .card .ttl{font-family:var(--ui);font-style:normal;font-weight:600;font-size:16.5px;line-height:1.3;color:var(--ci);margin-bottom:8px}
-.frame .card .row{font-family:var(--ui);font-size:13.5px;padding:7px 0;border-top:1px solid var(--cr);color:var(--ci)}
-.frame .card .row span:first-child{font-family:var(--ui);font-size:13px;letter-spacing:0;text-transform:none;color:var(--cm);padding-top:0}
-.frame .btn{border-radius:9px;font-weight:500;padding:9px 16px;font-size:13.5px;border:1px solid var(--cr2);color:var(--ci);background:var(--cw)}
-.frame .btn.ok,.frame .card.tier2 .btn.ok{background:var(--ca);border-color:var(--ca);color:#fff}
-.frame .btn.ok:hover{background:var(--ca2);border-color:var(--ca2)}
-.frame .btn.quiet{border-color:var(--cr2);color:var(--ci);background:transparent}
-.frame .card .stamp{font-family:var(--ui);font-size:12.5px;letter-spacing:0;text-transform:none;color:var(--cg);font-weight:500}
-.frame .card .stamp.bad{color:var(--cx)}
-.frame .card.done{opacity:.78}
-.frame .otp6 input{border-radius:9px;font-family:var(--ui);font-weight:600;background:var(--cb);border-color:var(--cr2);color:var(--ci)}
-.frame .otp6 input:focus{border-color:var(--ca);outline:none}
-.frame .otp6+.meta,.frame .otpwrap .meta{display:block;font-family:var(--ui);font-size:12px;letter-spacing:0;text-transform:none;color:var(--cm)}
-.frame .prog{background:var(--cr);border-radius:3px}.frame .prog i{background:var(--ca);border-radius:3px}
-.frame .checks{color:var(--cm);font-size:13px}.frame .checks div.on{color:var(--ci)}
-.frame .checks i{border-radius:50%;border-color:var(--cr2);color:#fff}.frame .checks div.on i{background:var(--cg);border-color:var(--cg)}
-.frame .trace{border-radius:12px;border:1px solid var(--cr);border-left:1px solid var(--cr);background:var(--cw);padding:8px 12px;color:var(--cm)}
-.frame .trace .th{font-family:var(--ui);font-size:12.5px;letter-spacing:0;text-transform:none;color:var(--ci);font-weight:500}
-.frame .trace .th i{border-radius:50%;background:var(--ca)}.frame .trace.done .th i{background:var(--cg)}
-.frame .trace .th small{color:var(--cm)}
-.frame .trace .tl i{border-radius:50%;border-color:var(--cr2);color:#fff}
-.frame .trace .tl.on i{border-color:var(--ca)}.frame .trace .tl.ok i{background:var(--cg);border-color:var(--cg)}
-.frame .trace .tl.no i{background:var(--cy);border-color:var(--cy);color:#fff}.frame .trace .tl.wait i{border-color:var(--cy)}
-.frame .trace .tl span b{color:var(--ci);font-weight:500}
-.frame .chips{background:var(--cb);padding:0 18px 10px}
-.frame .chips button{border-radius:999px;border:1px solid var(--cr2);background:var(--cw);color:var(--ci);font-size:12.5px;padding:6px 12px}
-.frame .chips button:hover{border-color:var(--ci);color:var(--ci)}
-.frame .composer{border-top:0;background:var(--cb);padding:6px 18px 18px;gap:0;position:relative}
-.frame .composer input{border-radius:16px;font-size:15px;background:var(--cw);border:1px solid var(--cr2);color:var(--ci);padding:14px 56px 14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
-.frame .composer input::placeholder{color:#9B9A93}
-.frame .composer input:focus{border-color:#B9B6AB;box-shadow:0 2px 10px rgba(0,0,0,.06)}
-.frame .composer button{position:absolute;right:28px;top:50%;transform:translateY(calc(-50% - 6px));width:34px;height:34px;border-radius:50%;background:var(--ca);padding:0;justify-content:center;font-size:0;letter-spacing:0}
-.frame .composer button:hover{background:var(--ca2)}
-.frame .composer button svg{width:16px;height:16px;transform:rotate(-90deg)}
-.frame .ctx{background:var(--cb);border-left:1px solid var(--cr);padding:18px 18px 24px;color:var(--ci)}
-.frame .ctx h3{font-family:var(--ui);font-style:normal;font-weight:600;font-size:17px;line-height:1.2;color:var(--ci);margin:0 0 2px;letter-spacing:0}
-.frame .ctx .sub{font-family:var(--ui);font-size:12.5px;letter-spacing:0;text-transform:none;color:var(--cm);margin-bottom:12px}
-.frame .kv{font-size:13.5px;padding:8px 0;border-top:1px solid var(--cr);color:var(--ci)}
-.frame .kv span:first-child{font-family:var(--ui);font-size:13px;letter-spacing:0;text-transform:none;color:var(--cm);padding-top:0}
-.frame .big{font-family:var(--ui);font-weight:600;font-size:32px;letter-spacing:-.02em;color:var(--ci);margin:4px 0 8px}
-.frame .ctx .spark path{stroke:var(--ca)}
-.frame .tile{border-top:1px solid var(--cr);padding:10px 0;color:var(--ci)}
-.frame .tile b{color:var(--ci);font-weight:500}
-.frame .tile small{font-family:var(--ui);font-size:12px;letter-spacing:0;color:var(--cm)}
-.frame .tile .ti{border-radius:8px;border-color:var(--cr);background:var(--cw);color:var(--ci)}
-.frame .tile .amt{color:var(--ci)}.frame .tile .amt.in{color:var(--cg)}
-.frame .tag{border-radius:999px;font-family:var(--ui);font-size:11px;letter-spacing:0;text-transform:none;padding:1px 8px;border:1px solid var(--cr2);color:var(--cm);background:var(--cw)}
-.frame .tag.good{color:var(--cg);border-color:#BBD5C3;background:#EAF3EC}.frame .tag.warn{color:var(--cy);border-color:#E3CDA6;background:#F8EFDF}
-.frame .empty{font-family:var(--ui);font-style:normal;font-size:13.5px;color:var(--cm);line-height:1.55}
-.frame .ctxbar{font-family:var(--ui);font-size:13px;letter-spacing:0;text-transform:none;color:var(--cm)}
-.frame .ctxbar button{border-radius:999px;border-color:var(--cr2);color:var(--ci);background:var(--cw)}
-.frame .ctxwrap{background:var(--cb);border-top-color:var(--cr2)}
-.frame .side .avatar{background:var(--ca);color:#fff;border-radius:50%;font-family:var(--ui);letter-spacing:0;font-size:11px}
+/* ---------- app layout: Claude-style structure, Signoff palette ---------- */
+.frame{height:min(840px,88vh);min-height:0;grid-template-columns:240px 1fr}
+.frame .chat,.frame .msgs,.frame .side,.frame .ctx{min-height:0}
+.frame .side{overflow:auto}
+.frame .ctx{display:none}
+.frame.panel-open{grid-template-columns:240px 1fr 320px}
+.frame.panel-open .ctx{display:block}
+.frame.side-closed{grid-template-columns:1fr}
+.frame.side-closed.panel-open{grid-template-columns:1fr 320px}
+.frame.side-closed .side{display:none}
+.chrome{gap:10px}
+.chrome .url{margin:0 auto}
+.chrome .live{margin-left:0}
+.icobtn{width:28px;height:28px;display:grid;place-items:center;padding:0;background:transparent;border:1px solid var(--app-rule);color:#C9D0DE;flex:none}
+.icobtn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.icobtn:hover{color:#fff;border-color:var(--app-rule2)}
+.newchat{display:flex;align-items:center;gap:8px;width:100%;border:1px solid var(--app-rule2);background:transparent;color:#F4F3EF;padding:9px 10px;font-weight:600;font-size:13.5px;margin:0 0 8px;text-align:left}
+.newchat svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.newchat:hover{background:#121A2A}
+.recents{border-top:1px solid var(--app-rule);margin-top:10px;padding-top:8px}
+.recents:before{content:"Recents";display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:#8FB0F7;padding:8px 8px 6px}
+.recents:empty{display:none}
+.recents button{display:block;width:100%;text-align:left;background:transparent;border:0;color:#C9D0DE;padding:7px 8px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recents button small{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--sub)}
+.recents button:hover{background:#121A2A;color:#fff}
+.recents button.active{box-shadow:inset 3px 0 0 var(--blue);color:#fff}
+.msgs{padding:24px max(20px,calc((100% - 760px)/2))}
+.chips{padding:0 max(16px,calc((100% - 760px)/2)) 10px}
+.composer{display:block;border-top:0;padding:4px max(16px,calc((100% - 760px)/2)) 16px;background:var(--app2)}
+.composer .box{position:relative;border:1px solid var(--app-rule2);background:var(--app);padding:8px 8px 6px 12px}
+.composer .box:focus-within{border-color:var(--blue)}
+.composer input,.composer .box input{width:100%;border:0;background:transparent;padding:6px 2px 4px;font-size:15px;color:#fff;outline:none;border-radius:0}
+.composer .bar{display:flex;align-items:center;gap:4px;margin-top:2px}
+.composer .bar button{border-radius:0;font-weight:500;letter-spacing:0}
+.composer .bar .tool{width:30px;height:30px;padding:0;background:transparent;border:1px solid var(--app-rule);color:#C9D0DE;display:grid;place-items:center}
+.composer .bar .tool svg,.composer .bar .model svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.composer .bar .model{margin-left:auto;background:transparent;border:0;color:#C9D0DE;font-size:12.5px;padding:6px 8px;display:flex;gap:6px;align-items:center}
+.composer .bar .model:hover,.composer .bar .tool:hover{color:#fff}
+.composer .bar .send{width:32px;height:32px;padding:0;background:var(--blue);border:0;color:#fff;display:grid;place-items:center}
+.composer .bar .send svg{width:15px;height:15px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.composer .menu{display:none;position:absolute;right:8px;bottom:46px;background:var(--app3);border:1px solid var(--app-rule2);min-width:250px;z-index:4;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.composer .menu.open{display:block}
+.composer .menu button{display:block;width:100%;text-align:left;background:transparent;border:0;color:#E6E9F0;padding:9px 12px;font-size:13px;border-radius:0;font-weight:500}
+.composer .menu button small{display:block;color:var(--sub);font-size:11.5px;font-weight:400;margin-top:1px}
+.composer .menu button:hover{background:#1B2744}
+.composer .menu button.on{box-shadow:inset 3px 0 0 var(--blue)}
+.meta{display:none}
+.greet{display:none}
+.frame.fresh .msgs,.frame.fresh .stepper{display:none}
+.frame.fresh .chat{justify-content:center}
+.frame.fresh .greet{display:block;text-align:center;padding:0 max(20px,calc((100% - 640px)/2)) 20px}
+.frame.fresh .greet .eyebrow{margin-bottom:12px}
+.frame.fresh .greet h2{margin:0 0 10px;font-weight:700;font-size:34px;line-height:1.1;letter-spacing:-.03em;color:#F4F3EF}
+.frame.fresh .greet h2 em{display:block;font-family:var(--serif);font-style:italic;font-weight:400}
+.frame.fresh .greet p{margin:0;color:var(--sub);font-size:14.5px}
+.frame.fresh .composer{order:2;padding-top:0}
+.frame.fresh .chips{order:3;justify-content:center;padding-top:4px}
 @media (max-width:680px){
-  .frame{border-radius:0;border:0}
-  .frame .side{flex-direction:row;background:var(--cs);border-bottom:1px solid var(--cr)}
-  .frame .nav button{border-radius:0;color:var(--cm)}
-  .frame .nav button.active{background:transparent;box-shadow:inset 0 -2px 0 var(--ca)}
-  .frame .step{font-size:0;padding:0;width:18px;height:6px;border-radius:3px;background:var(--cr)}
-  .frame .step.done{background:var(--cg)}.frame .step.now{background:var(--ca);border:0}
-  .frame .composer{padding:6px 12px 12px}
-  .frame .composer button{right:22px}
+  .frame{height:82dvh;grid-template-columns:1fr}
+  .frame.panel-open,.frame.side-closed,.frame.side-closed.panel-open{grid-template-columns:1fr}
+  .frame .ctx{display:block}
+  .frame .side{overflow-x:auto}
+  .newchat,.recents{display:none}
+  .chrome .icobtn:first-child{display:none}
+  .msgs{padding:14px 12px}
+  .chips{padding:0 12px 8px}
+  .composer{padding:4px 12px 12px}
+  .frame.fresh .greet h2{font-size:28px}
 }
-.frame{height:min(840px,88vh);min-height:0}
-.frame .chat{min-height:0}
-.frame .msgs{min-height:0}
-.frame .side,.frame .ctx{min-height:0;overflow:auto}
-@media (max-width:680px){.frame{height:82dvh}}
 </style>
 </head>
 <body>
@@ -536,10 +490,12 @@ footer .pg{font-family:var(--mono);letter-spacing:.18em;font-size:12px}
 <div class="wrap light">
   <div class="frame-wrap">
   <section id="app" class="frame" aria-label="Signoff prototype">
-    <div class="chrome"><div class="lights"></div><div class="url" id="urlbar">Getting started</div><div class="live demo" id="livePill"><i></i><span id="livePillText">Demo</span></div></div>
+    <div class="chrome"><button type="button" class="icobtn" onclick="toggleSide()" title="Sidebar" aria-label="Toggle sidebar"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><div class="lights"></div><div class="url" id="urlbar">Getting started</div><div class="live demo" id="livePill"><i></i><span id="livePillText">Demo</span></div><button type="button" class="icobtn" onclick="togglePanel()" title="Panel" aria-label="Toggle panel"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16"/><path d="M15 4v16"/></svg></button></div>
     <aside class="side">
       <div class="brand2"><span class="mark"></span>Signoff</div>
+      <button type="button" class="newchat" onclick="newChat()"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>New chat</button>
       <nav class="nav" id="nav"></nav>
+      <div class="recents" id="recents"></div>
       <div class="ring" id="ring"></div>
       <button class="foot" onclick="openSettings()" title="Settings">
         <span class="avatar" id="avatar">OW</span>
@@ -549,15 +505,26 @@ footer .pg{font-family:var(--mono);letter-spacing:.18em;font-size:12px}
 
     <main class="chat">
       <div class="stepper" id="stepper"></div>
+      <div class="greet" id="greet"></div>
       <div class="msgs" id="msgs"></div>
       <div class="chips" id="chips"></div>
       <form class="composer" id="composer" onsubmit="return onSend(event)">
-        <input id="inp" autocomplete="off" placeholder="Tell Signoff what you want to do">
-        <button type="submit" aria-label="Send">Send <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        <div class="box">
+          <input id="inp" autocomplete="off" placeholder="Tell Signoff what you want to do">
+          <div class="bar">
+            <button type="button" class="tool" onclick="openSettings()" title="Settings and limits" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+            <button type="button" class="model" id="modelPick" onclick="toggleModeMenu(event)"><span>Scripted demo</span><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+            <button type="submit" class="send" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+          </div>
+          <div class="menu" id="modeMenu">
+            <button type="button" onclick="pickMode('demo')" id="mmDemo">Scripted demo<small>Fixed answers, every partner simulated</small></button>
+            <button type="button" onclick="pickMode('live')" id="mmLive">Signoff AI<small>Claude runs the conversation, partners simulated</small></button>
+          </div>
+        </div>
       </form>
     </main>
 
-    <div class="ctxwrap" id="ctxwrap"><div class="ctxbar"><span id="ctxTitle">Panel</span><button type="button" onclick="document.getElementById('ctxwrap').classList.remove('open')">Close</button></div><section class="ctx" id="ctx"></section></div>
+    <div class="ctxwrap" id="ctxwrap"><div class="ctxbar"><span id="ctxTitle">Panel</span><button type="button" onclick="closePanel()">Close</button></div><section class="ctx" id="ctx"></section></div>
   </section>
   </div>
   <p class="caption">Prototype. Formation, bank, accounting, email and travel partners are simulated. In Settings you can switch the agent from a script to Claude with your own API key.</p>
@@ -818,8 +785,8 @@ function renderCtx(){
   if(m==='activity'){h+=`<h3>Activity</h3><div class="sub">Every proposal, and what the gate did with it</div>`;
     if(!S.log.length)h+=`<div class="empty">Nothing yet. Every tool call the agent makes is written here, including the ones the gate refused.</div>`;
     S.log.slice().reverse().slice(0,25).forEach(e=>{const o=e.outcome||'…';const tag=o==='placeholder'?'<span class="tag warn">placeholder</span>':o==='denied'?'<span class="tag warn">refused</span>':o==='declined'?'<span class="tag">declined</span>':o==='approved'?'<span class="tag good">approved</span>':'<span class="tag">ran</span>';h+=`<div class="tile"><span class="tb"><b>${esc(e.tool.replace(/_/g,' '))}${tag}</b><small>${e.at} · tier ${e.g.tier??'–'}${e.g.deny?' · '+esc(e.g.deny):''}</small></span></div>`})}
-  c.innerHTML=h;animateBalance()}
-function renderAll(){renderNav();renderStepper();renderCtx();$('avatar').textContent=(S.name||'Owner').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();$('ownerName').textContent=S.name||'Owner';$('livePill').className='live '+(S.mode==='live'?'':'demo');$('livePillText').textContent=S.mode==='live'?'Running on Claude':'Scripted demo';$('urlbar').textContent=S.biz.name?S.biz.name+' '+S.biz.entity:'Getting started';$('modeNote').textContent=S.mode==='live'?'Live mode: the conversation runs on Signoff AI. The bank, filer, QuickBooks and Gmail are simulated.':'Demo mode: the agent is scripted and every partner is simulated.'}
+  c.innerHTML=h;animateBalance();const ct=$('ctxTitle');if(ct)ct.textContent=(MODULES.find(x=>x[0]===m)||['','Panel'])[1];if(renderCtx.last&&renderCtx.last!==m&&typeof openPanel==='function')openPanel();renderCtx.last=m}
+function renderAll(){renderNav();renderStepper();renderCtx();$('avatar').textContent=(S.name||'Owner').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();$('ownerName').textContent=S.name||'Owner';$('livePill').className='live '+(S.mode==='live'?'':'demo');$('livePillText').textContent=S.mode==='live'?'Running on Claude':'Scripted demo';const mp=$('modelPick');if(mp)mp.querySelector('span').textContent=S.mode==='live'?'Signoff AI':'Scripted demo';$('urlbar').textContent=S.biz.name?S.biz.name+' '+S.biz.entity:'Getting started';$('modeNote').textContent=S.mode==='live'?'Live mode: the conversation runs on Signoff AI. The bank, filer, QuickBooks and Gmail are simulated.':'Demo mode: the agent is scripted and every partner is simulated.'}
 function spark(){let b=0;const pts=[0].concat(S.bank.txns.map(t=>b+=t.amt));if(pts.length<2)pts.push(pts[0]);const max=Math.max(...pts,1),min=Math.min(...pts,0),W=268,H=44;const xy=pts.map((v,i)=>[i/(pts.length-1)*W,H-4-((v-min)/((max-min)||1))*(H-10)]);const d='M'+xy.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L');return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${d}"/></svg>`}
 let lastBal=null;function animateBalance(){const el=$('balCounter');if(!el)return;const to=S.bank.balance,from=lastBal===null?0:lastBal;if(from===to){lastBal=to;return}const t0=performance.now();(function f(now){const k=Math.min(1,(now-t0)/700),e=1-Math.pow(1-k,3);el.textContent=money(from+(to-from)*e);if(k<1)requestAnimationFrame(f);else lastBal=to})(t0)}
 function slug(s){return (s||'yourcompany').toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,18)||'yourcompany'}
@@ -1276,19 +1243,32 @@ function syncStageFromState(){const s=S.mail.connected?'run':S.books.connected?'
 
 /* ===================== INPUT + SETTINGS + BOOT ===================== */
 let busy=false;
-async function onSend(e){e.preventDefault();const t=$('inp').value.trim();if(!t||busy)return false;$('inp').value='';addMsg('me',t);busy=true;$('chips').innerHTML='';
+async function onSend(e){e.preventDefault();const t=$('inp').value.trim();if(!t||busy)return false;$('inp').value='';$('app').classList.remove('fresh');addMsg('me',t);busy=true;$('chips').innerHTML='';
   curTrace=null;
   try{if(S.mode==='live'){if(!S.biz.desc&&S.stage==='intake')S.biz.desc=t;await liveReply(t)}else{typing(true);await sleep(500);typing(false);await demoReply(t)}}
   catch(err){addMsg('err',err.message)}
-  traceEnd();busy=false;return false}
+  traceEnd();busy=false;if(S.biz.desc)saveRecent();return false}
 function openSettings(){checkAI();$('sName').value=S.name;$('sPhone').value=S.phone;$('sKey').value=S.key;$('sLimit').value=S.limit;setModeUI(S.mode);$('settings').classList.add('open')}
 function setModeUI(m){$('segDemo').classList.toggle('on',m==='demo');$('segLive').classList.toggle('on',m==='live');$('keyRow').style.display=m==='live'?'':'none';const pm=$('settings').dataset.partners||S.partners;if($('segSim')){$('segSim').classList.toggle('on',pm==='sim');$('segPLive').classList.toggle('on',pm==='live')}}
 function setPartners(m){$('settings').dataset.partners=m;setModeUI($('settings').dataset.mode||S.mode)}
 function setMode(m){setModeUI(m);$('settings').dataset.mode=m}
 function saveSettings(){S.name=$('sName').value.trim();S.phone=$('sPhone').value.trim();S.key=$('sKey').value.trim();S.limit=Number($('sLimit').value)||2000;const m=$('settings').dataset.mode||S.mode;const changed=m!==S.mode;S.mode=m;const pm=$('settings').dataset.partners||S.partners;const pchanged=pm!==S.partners;S.partners=pm;save();if(pchanged)sys(pm==='live'?'Partners switched to real APIs. Approvals go to the Signoff server and stop at any partner without keys.':'Partners switched to the simulated walkthrough.');$('settings').classList.remove('open');renderAll();if(changed)sys(m==='live'?(S.key?'Live mode on: Claude runs the conversation with your key. Partners stay simulated.':(aiStatus&&aiStatus.configured?'Live mode on: Signoff AI runs the conversation. Partners stay simulated.':'Live mode on, but Signoff AI is still a placeholder. Messages will explain until a key is added.')):'Demo mode on: scripted agent.')}
+function toggleSide(){$('app').classList.toggle('side-closed')}
+function openPanel(){$('app').classList.add('panel-open');$('ctxwrap').classList.add('open')}
+function closePanel(){$('app').classList.remove('panel-open');$('ctxwrap').classList.remove('open')}
+function togglePanel(){$('app').classList.contains('panel-open')?closePanel():openPanel()}
+function toggleModeMenu(e){e.stopPropagation();const m=$('modeMenu');$('mmDemo').classList.toggle('on',S.mode==='demo');$('mmLive').classList.toggle('on',S.mode==='live');m.classList.toggle('open')}
+document.addEventListener('click',()=>{const m=$('modeMenu');if(m)m.classList.remove('open')});
+function pickMode(m){$('modeMenu').classList.remove('open');if(m===S.mode)return;S.mode=m;save();renderAll();if(m==='live')checkAI();sys(m==='live'?(S.key?'Signoff AI: Claude runs the conversation with your key. Partners stay simulated.':'Signoff AI selected. If the server has no key yet, messages will say so; add your own key under the + button.'):'Scripted demo: fixed answers, every partner simulated.')}
+const RK='signoff-recents';
+function loadRecents(){try{return JSON.parse(localStorage.getItem(RK)||'[]')}catch(e){return[]}}
+function saveRecent(){if(!S.biz.desc)return;const list=loadRecents().filter(r=>r.id!==S.rid);S.rid=S.rid||String(Date.now());const snap=JSON.parse(JSON.stringify(S));delete snap.key;list.unshift({id:S.rid,title:S.biz.name?S.biz.name+' '+S.biz.entity:S.biz.desc.slice(0,40),when:new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'}),stage:STAGE_LABEL[S.stage],state:snap});try{localStorage.setItem(RK,JSON.stringify(list.slice(0,8)))}catch(e){}renderRecents()}
+function renderRecents(){const el=$('recents');if(!el)return;el.innerHTML='';loadRecents().forEach(r=>{const b=document.createElement('button');b.type='button';b.className=r.id===S.rid?'active':'';b.innerHTML=`${esc(r.title)}<small>${esc(r.stage||'')} · ${esc(r.when)}</small>`;b.onclick=()=>openRecent(r.id);el.appendChild(b)})}
+function openRecent(id){const r=loadRecents().find(x=>x.id===id);if(!r)return;saveRecent();const keep={mode:S.mode,partners:S.partners,key:S.key,name:S.name,phone:S.phone,limit:S.limit};S=Object.assign(fresh(),r.state,keep);S.rid=id;$('msgs').innerHTML='';$('app').classList.remove('fresh');renderCtx.last=null;renderAll();renderRecents();sys(`Restored ${r.title}. Earlier messages are not kept in the prototype; the company, bank, bills and tax state are.`);addMsg('ai',`Picking up ${r.title} at the ${STAGE_LABEL[S.stage].toLowerCase()} step. What do you need?`);setChips(S.stage==='run'?["What's in my inbox?",'What bills are due?','What do I owe in tax?','How is the business doing?']:['Continue setting up'])}
+function newChat(){saveRecent();const keep={mode:S.mode,partners:S.partners,key:S.key,name:S.name,phone:S.phone,limit:S.limit};S=Object.assign(fresh(),keep);$('msgs').innerHTML='';$('settings').classList.remove('open');closePanel();renderCtx.last=null;boot()}
 function resetAll(){const keep={mode:S.mode,partners:S.partners,key:S.key,name:S.name,phone:S.phone,limit:S.limit};S=Object.assign(fresh(),keep);$('msgs').innerHTML='';$('settings').classList.remove('open');boot()}
 $('settings').addEventListener('click',e=>{if(e.target===$('settings'))$('settings').classList.remove('open')});
-function boot(){renderAll();addMsg('ai',`Hi${S.name?' '+S.name:''}. I'm Signoff. Tell me what you want to do as a business, in your own words, and I'll take you through setting it up: company, identity, bank, books and email. Nothing happens without your sign-off.`);setChips(["I'm building an AI that runs hospitals and will raise a seed round","I'm starting a rocket-launch company and need investors","I'm launching a humanoid-robot startup and raising $2M",'I run a lawn-care business on weekends'])}
+function boot(){renderAll();renderRecents();const hr=new Date().getHours(),gw=hr<12?'Morning':hr<18?'Afternoon':'Evening';$('greet').innerHTML=`<p class="eyebrow">Signoff</p><h2>${gw}${S.name?', '+esc(S.name):''}.<em>What do you want to start?</em></h2><p>Describe the business in a sentence. Signoff forms it, gets the EIN, opens the bank account, connects the books, then runs it. Nothing moves without your sign-off.</p>`;$('app').classList.add('fresh');addMsg('ai',`Hi${S.name?' '+S.name:''}. I'm Signoff. Tell me what you want to do as a business, in your own words, and I'll take you through setting it up: company, identity, bank, books and email. Nothing happens without your sign-off.`);setChips(["I'm building an AI that runs hospitals and will raise a seed round","I'm starting a rocket-launch company and need investors","I'm launching a humanoid-robot startup and raising $2M",'I run a lawn-care business on weekends'])}
 /* waitlist: set WAITLIST_ENDPOINT to a form service URL (Formspree, Google Form, your own API) when the page is deployed; until then sign-ups are kept in this browser */
 const WAITLIST_ENDPOINT='https://signoff-three.vercel.app/api/waitlist'; /* absolute so the form works from any domain the page is served on */
 async function joinWaitlist(e){e.preventDefault();const email=$('wlEmail').value.trim(),why=$('wlWhy').value.trim(),msg=$('wlMsg');msg.className='wlmsg';
