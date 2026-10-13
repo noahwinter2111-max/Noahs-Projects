@@ -173,7 +173,7 @@ A page for your onboarding team: https://signoff-three.vercel.app/banker
 Twenty minutes in the next couple of weeks?
 
 Evan Winter
-Founder, Truffles AI
+Founder of record, Signoff
 
 ---
 
