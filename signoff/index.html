@@ -518,6 +518,31 @@ footer .pg{font-family:var(--mono);letter-spacing:.18em;font-size:12px}
   .caption{padding:0 16px}
   .steps{grid-template-columns:1fr}
 }
+
+/* ---------- below the app: feature grid, sign-up band, footer columns ---------- */
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:36px}
+.g{background:var(--band);padding:24px 22px 26px;min-width:0}
+.g .gi{width:34px;height:34px;display:grid;place-items:center;border:1px solid #C9D2E6;background:var(--paper);margin-bottom:14px}
+.g .gi svg{width:17px;height:17px;stroke:var(--blue);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.g b{display:block;font-size:17px;font-weight:700;letter-spacing:-.01em;margin-bottom:6px}
+.g p{margin:0;font-size:14.5px;line-height:1.5;color:#2A2A33}
+.wlband{max-width:680px;margin:0 auto;text-align:center}
+.wlband .lead{margin-bottom:24px}
+.wlband .wlf{background:transparent;padding:0;gap:10px;align-items:stretch}
+.wlband .wlrow{display:flex;gap:8px}
+.wlband .wlf input{background:#fff;border:1px solid #C9CDD4;padding:13px 14px;font-size:15.5px}
+.wlband .wlrow input{flex:1;min-width:0}
+.wlband .wlrow .btn-l{padding:0 18px}
+.wlband .wlmsg{text-align:center}
+footer{display:block;padding:40px 0 48px}
+.fcols{display:grid;grid-template-columns:1.4fr 1fr 1fr 1.4fr;gap:28px}
+.fcols b{display:block;font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px}
+.fcols a{display:block;color:var(--muted);text-decoration:none;font-size:13.5px;line-height:1.45;margin-bottom:8px}
+.fcols a:hover{color:var(--ink)}
+.fbrand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;color:var(--ink);align-self:start;flex-wrap:wrap}
+.fbrand small{display:block;width:100%;font-weight:400;color:var(--muted);font-size:13px;margin-top:2px}
+@media (max-width:860px){.grid3{grid-template-columns:1fr 1fr}.fcols{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.grid3{grid-template-columns:1fr}.fcols{grid-template-columns:1fr}.wlband .wlrow{flex-direction:column}.wlband .wlrow .btn-l{padding:12px 18px}}
 </style>
 </head>
 <body>
@@ -591,7 +616,7 @@ footer .pg{font-family:var(--mono);letter-spacing:.18em;font-size:12px}
 </div>
 
 <section class="s band light" id="who"><div class="wrap"><p class="snum">01</p>
-  <p class="eyebrow">01 · Who it's for</p>
+  <p class="eyebrow">Who it's for</p>
   <h2>Two kinds of company. <i>Same afternoon.</i></h2>
   <p class="lead">The first answer decides the path. Either way, by the end of the afternoon the company exists, has an EIN and a bank account, and the books are on.</p>
   <div class="two">
@@ -625,7 +650,7 @@ footer .pg{font-family:var(--mono);letter-spacing:.18em;font-size:12px}
 </div></section>
 
 <section class="s light" id="how"><div class="wrap"><p class="snum">02</p>
-  <p class="eyebrow">02 · How it works</p>
+  <p class="eyebrow">How it works</p>
   <h2>What happens, <i>in order.</i></h2>
   <p class="lead">You describe the business in your own words. Signoff does the rest in this sequence, and each step only unlocks when the one before it is actually done.</p>
   <ol class="steps">
@@ -639,8 +664,25 @@ footer .pg{font-family:var(--mono);letter-spacing:.18em;font-size:12px}
   </ol>
 </div></section>
 
+<section class="s light" id="runs"><div class="wrap">
+  <p class="eyebrow">What it runs</p>
+  <h2>One chat. <i>The whole back office.</i></h2>
+  <p class="lead">Every module below is live in the prototype. Read-only things just happen. Anything outward waits for your tap, and anything that moves money waits for a six-digit code.</p>
+  <div class="grid3">
+    <div class="g"><span class="gi"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg></span><b>Company</b><p>Identity check, formation in any state or Delaware, EIN, documents in a vault.</p></div>
+    <div class="g"><span class="gi"><svg viewBox="0 0 24 24"><path d="M3 10l9-6 9 6"/><path d="M5 10v9M9 10v9M15 10v9M19 10v9M3 19h18"/></svg></span><b>Bank</b><p>Payments with a code, cards locked to a rule, statements, low-balance alerts, freezes, the month close.</p></div>
+    <div class="g"><span class="gi"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg></span><b>Bills</b><p>Bills arrive from your inbox, get paid on their due dates or by autopay, and anything over your limit is held.</p></div>
+    <div class="g"><span class="gi"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg></span><b>Getting paid</b><p>Invoices that chase themselves, payment links, monthly subscriptions, refunds with a code.</p></div>
+    <div class="g"><span class="gi"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16"/><path d="M8 15l3-4 3 2 5-6"/></svg></span><b>Books</b><p>QuickBooks with the bank feed on, every transaction categorised, profit and loss on demand.</p></div>
+    <div class="g"><span class="gi"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span><b>Email</b><p>Reads, drafts and replies from your own address. Refuses anything that tries to redirect a payment.</p></div>
+    <div class="g"><span class="gi"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span><b>Taxes</b><p>A share of every deposit reserved, quarterly payments to the IRS, annual report, 1099s, sales tax, a CPA who files.</p></div>
+    <div class="g"><span class="gi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 019 9h-9z"/></svg></span><b>Investors</b><p>C corp conversion, SAFEs for signature, money kept in a raised account, cap table, data room, updates, runway.</p></div>
+    <div class="g"><span class="gi"><svg viewBox="0 0 24 24"><path d="M4 12h4l2-6 4 12 2-6h4"/></svg></span><b>Activity</b><p>Every proposal, what tier it was, and whether you approved, declined, or the gate refused it.</p></div>
+  </div>
+</div></section>
+
 <section class="s band light" id="limits"><div class="wrap"><p class="snum">03</p>
-  <p class="eyebrow">03 · Who decides</p>
+  <p class="eyebrow">Who decides</p>
   <h2>It does the work. <i>You hold the pen.</i></h2>
   <p class="lead">The model proposes. A policy gate written in plain code decides what each action needs. The model can't argue its way past it, and neither can a prompt hidden in an email.</p>
   <div class="two">
@@ -668,7 +710,7 @@ footer .pg{font-family:var(--mono);letter-spacing:.18em;font-size:12px}
 </div></section>
 
 <section class="s light"><div class="wrap"><p class="snum">04</p>
-  <p class="eyebrow">04 · The market</p>
+  <p class="eyebrow">The market</p>
   <h2>Advisors advise. Filers file. Banks bank. <i>Nobody does all of it.</i></h2>
   <p class="lead">Formation sites stop at the certificate. Banks never start. AI assistants talk about your business but cannot touch it. Signoff does the whole job and puts a sign-off in front of every outward step.</p>
   <div class="tablewrap"><table class="cmp">
@@ -682,7 +724,7 @@ footer .pg{font-family:var(--mono);letter-spacing:.18em;font-size:12px}
 </div></section>
 
 <section class="s band light" id="faq"><div class="wrap"><p class="snum">05</p>
-  <p class="eyebrow">05 · Questions</p>
+  <p class="eyebrow">Questions</p>
   <h2>Things people ask <i>before they sign up.</i></h2>
   <div class="faq">
     <details open><summary>How is this different from CoFounder.AI and the other AI assistants?</summary><p>They are advisors. They plan, brainstorm and draft, and you go off and do the real work somewhere else. Signoff does the real work: it files with the state, gets the EIN, opens the bank account, keeps the books and moves the money, with your sign-off on every outward step. If you want someone to talk strategy with, use one of them. If you want the company to exist by tonight, use Signoff.</p></details>
@@ -696,24 +738,27 @@ footer .pg{font-family:var(--mono);letter-spacing:.18em;font-size:12px}
   </div>
 </div></section>
 
-<section class="s light" id="waitlist"><div class="wrap"><p class="snum">06</p>
-  <div class="wl">
-    <div>
-      <p class="eyebrow">06 · Early access</p>
-      <h2>Try it first. <i>Then tell us what's wrong.</i></h2>
-      <p class="lead">Leave your email and you'll get one message when there's a real version to form a company with. Nothing before that, and nothing after if you don't reply.</p>
-    </div>
+<section class="s band light" id="waitlist"><div class="wrap">
+  <div class="wlband">
+    <p class="eyebrow">Early access</p>
+    <h2>Try it first. <i>Then tell us what's wrong.</i></h2>
+    <p class="lead">Leave your email and you'll get one message when there's a real version to form a company with. Nothing before that, and nothing after if you don't reply.</p>
     <form class="wlf" id="wlForm" onsubmit="return joinWaitlist(event)">
-      <label for="wlEmail">Email</label>
-      <div class="wlrow"><input id="wlEmail" type="email" required autocomplete="email" placeholder="you@example.com"><button class="btn-l" type="submit">Join the list</button></div>
-      <label for="wlWhy">What are you starting? <span style="color:var(--muted);font-weight:400">(optional)</span></label>
-      <input id="wlWhy" placeholder="A freelance design business in Texas">
+      <div class="wlrow"><input id="wlEmail" type="email" required autocomplete="email" placeholder="you@example.com" aria-label="Email"><button class="btn-l" type="submit">Join the list</button></div>
+      <input id="wlWhy" placeholder="What are you starting? (optional)" aria-label="What are you starting?">
       <div class="wlmsg" id="wlMsg"></div>
     </form>
   </div>
 </div></section>
 
-<div class="wrap light"><footer><span><b>signoff-three.vercel.app</b> · prototype · October 2026</span><span class="pg">Nothing here holds, moves or stores real money or identity documents.</span></footer></div>
+<div class="wrap light"><footer>
+  <div class="fcols">
+    <div class="fbrand"><span class="mark"></span>Signoff<small>Not an AI partner. A back office.</small></div>
+    <div><b>Product</b><a href="#app">Open the prototype</a><a href="#who">Who it's for</a><a href="#how">How it works</a><a href="#runs">What it runs</a><a href="#limits">What it won't do</a></div>
+    <div><b>Company</b><a href="#faq">Questions</a><a href="#waitlist">Waitlist</a><a href="/banker">For banks</a></div>
+    <div><b>Status</b><a href="#app">Prototype · October 2026</a><a href="#limits">Nothing here holds, moves or stores real money or identity documents.</a><a href="#faq">Built by Evan Winter, founder of Truffles AI</a></div>
+  </div>
+</footer></div>
 
 <div class="modal" id="settings">
   <div class="sheet">
