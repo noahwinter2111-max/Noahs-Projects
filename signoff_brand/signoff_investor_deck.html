@@ -333,7 +333,7 @@ slides[0].classList.add('on');reveal(slides[0]);[...nav.children][0].classList.a
 (function(){
   function wrapAndFit(){
     document.querySelectorAll('section.s').forEach(function(s){
-      var foot=s.querySelector('.foot-l');if(!foot)return;
+      var foot=s.querySelector('.foot-l');if(!foot||/(^|\s)cover(\s|$)/.test(s.className))return;
       var body=s.querySelector(':scope > .body');
       if(!body){body=document.createElement('div');body.className='body';var kids=[].slice.call(s.children).filter(function(e){return !/(^|\s)(logo|num|foot-l|foot-r)(\s|$)/.test(e.className)});kids.forEach(function(e){body.appendChild(e)});s.insertBefore(body,foot)}
       body.style.transform='';body.style.width='';body.style.height='';body.style.flex='';
