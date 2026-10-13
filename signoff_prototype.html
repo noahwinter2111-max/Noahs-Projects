@@ -543,6 +543,12 @@ footer{display:block;padding:40px 0 48px}
 .fbrand small{display:block;width:100%;font-weight:400;color:var(--muted);font-size:13px;margin-top:2px}
 @media (max-width:860px){.grid3{grid-template-columns:1fr 1fr}.fcols{grid-template-columns:1fr 1fr}}
 @media (max-width:560px){.grid3{grid-template-columns:1fr}.fcols{grid-template-columns:1fr}.wlband .wlrow{flex-direction:column}.wlband .wlrow .btn-l{padding:12px 18px}}
+.plain{list-style:none;margin:14px 0 0;padding:0;counter-reset:n}
+.plain li{counter-increment:n;padding:11px 0 11px 44px;border-top:1px solid var(--rule);font-size:15.5px;line-height:1.45;color:#2A2A33;position:relative}
+.plain li:before{content:counter(n,decimal-leading-zero);position:absolute;left:0;top:13px;font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;color:var(--blue);font-weight:600}
+.plain li:last-child{border-bottom:1px solid var(--rule)}
+.plain li b{font-weight:700;color:var(--ink)}
+.blk.d .plain li{border-color:#2C3A5C;color:#C9D0DE}.blk.d .plain li b{color:#F4F3EF}.blk.d .plain li:before{color:#8FB0F7}
 </style>
 </head>
 <body>
@@ -554,9 +560,9 @@ footer{display:block;padding:40px 0 48px}
   </header>
 
   <section class="hero">
-    <p class="eyebrow">Not an AI partner. A back office. · prototype · 2026</p>
+    <p class="eyebrow">Make a company. Then run it. · prototype · 2026</p>
     <h1><span class="w" style="animation-delay:0.05s">You</span> <span class="w" style="animation-delay:0.11s">bring</span> <span class="w" style="animation-delay:0.17s">the</span> <span class="w" style="animation-delay:0.23s">idea.</span><i><span class="w" style="animation-delay:0.35s">Signoff</span> <span class="w" style="animation-delay:0.41s">brings</span> <span class="w" style="animation-delay:0.47s">the</span> <span class="w" style="animation-delay:0.53s">company.</span></i></h1>
-    <p>Plenty of AIs will tell you what to do next. Signoff is the one that does the paperwork. It forms the company, gets the EIN, opens the bank account, keeps the books, pays the bills, sends the invoices and files the taxes, and it asks you before every outward step. No advice. A company.</p>
+    <p>Say what your business is. Signoff makes the company: the paperwork, the tax ID, the bank account, the books, the email. Then it runs it: pays the bills, sends the invoices, saves for taxes, files the forms. It asks you before anything goes out, and money needs a code.</p>
     <form class="herobox" onsubmit="return heroGo(event)">
       <input id="heroInp" autocomplete="off" placeholder="Describe your business in a sentence">
       <button type="submit" aria-label="Start"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
@@ -618,7 +624,7 @@ footer{display:block;padding:40px 0 48px}
 <section class="s band light" id="who"><div class="wrap"><p class="snum">01</p>
   <p class="eyebrow">Who it's for</p>
   <h2>Two kinds of company. <i>Same afternoon.</i></h2>
-  <p class="lead">The first answer decides the path. Either way, by the end of the afternoon the company exists, has an EIN and a bank account, and the books are on.</p>
+  <p class="lead">Say whether you plan to raise money. Either way, by the end of the afternoon you have a real company, a tax ID, a bank account and books.</p>
   <div class="two">
     <div class="blk ac">
       <p class="eyebrow">Building the next big thing</p>
@@ -651,23 +657,38 @@ footer{display:block;padding:40px 0 48px}
 
 <section class="s light" id="how"><div class="wrap"><p class="snum">02</p>
   <p class="eyebrow">How it works</p>
-  <h2>What happens, <i>in order.</i></h2>
-  <p class="lead">You describe the business in your own words. Signoff does the rest in this sequence, and each step only unlocks when the one before it is actually done.</p>
-  <ol class="steps">
-    <li><span class="n">01 · Intake</span><div><b>Intake</b><p>You say what you do, where you live, and whether you'll raise money. A freelancer in Texas gets a single-member Texas LLC. A founder who says "I'll raise" gets a Delaware C corporation with founder shares, registered in Texas as well. It explains the choice in two sentences and declines businesses the bank won't take: money services, gambling, cannabis, weapons, crypto exchanges.</p></div></li>
-    <li><span class="n">02 · Identity</span><div><b>Identity</b><p>A photo of your ID, a selfie and a sanctions screen, run by the identity partner. Signoff never sees or stores your ID number. The check is repeated every 90 days in the background.</p></div></li>
-    <li><span class="n">03 · Form + EIN</span><div><b>Formation and EIN</b><p>It drafts the filing and shows you a card with the name, entity, state and fee. You approve, the filing partner submits it, and the EIN application follows once the state accepts. Both land in the Company panel.</p></div></li>
-    <li><span class="n">04 · Bank</span><div><b>Bank account</b><p>The certificate, EIN letter and operating agreement go to the bank. The bank runs its own KYC and opens the account. Signoff waits for the bank's "account open" message before anything downstream unlocks.</p></div></li>
-    <li><span class="n">05 · Books + email</span><div><b>Books and email</b><p>QuickBooks Online connects with the bank feed on. Gmail or Microsoft 365 connects next. From here, "invoice Acme $4,500 net 14" and "what came in this week" are ordinary requests.</p></div></li>
-    <li><span class="n">06 · Run</span><div><b>Running the company</b><p>Payments, invoices, travel on the company card, replies to customers, and a compliance calendar with the annual report and tax dates. A CPA is matched before your first filing is due.</p></div></li>
-    <li><span class="n">07 · Raise</span><div><b>Raising money</b><p>Say who and how much. If you started as an LLC, Signoff converts it to a Delaware C corporation first, only with your approval. Then it issues a standard post-money SAFE for e-signature, watches for the wire, keeps the cap table, shares a read-only data room that expires, and sends investors a monthly update you sign off on.</p></div></li>
-  </ol>
+  <h2>Make it. <i>Then manage it.</i></h2>
+  <p class="lead">Two jobs, one chat. Each step waits for the one before it, and anything that leaves the company waits for you.</p>
+  <div class="two">
+    <div class="blk">
+      <p class="eyebrow">Make it</p>
+      <h3>From a sentence to a company</h3>
+      <ol class="plain">
+        <li><b>Tell it.</b> What you do, where you live, whether you'll raise money.</li>
+        <li><b>Prove it's you.</b> ID and a selfie. Signoff never keeps your ID number.</li>
+        <li><b>Form it.</b> The filing and the tax ID, after you tap approve.</li>
+        <li><b>Bank it.</b> Your papers go to the bank. The bank opens the account.</li>
+        <li><b>Connect it.</b> Books and email, so everything lands in one place.</li>
+      </ol>
+    </div>
+    <div class="blk d">
+      <p class="eyebrow">Manage it</p>
+      <h3>Then it runs, and asks first</h3>
+      <ol class="plain">
+        <li><b>Bills.</b> Paid on their due dates. Anything over your limit waits for you.</li>
+        <li><b>Money in.</b> Invoices, payment links, subscriptions. Reminders go out by themselves.</li>
+        <li><b>Taxes.</b> A share of every deposit saved. Quarterly tax paid. Forms filed.</li>
+        <li><b>People.</b> Pay contractors, pay yourself, cards with a limit.</li>
+        <li><b>Investors.</b> Raise money, keep it apart, keep the cap table.</li>
+      </ol>
+    </div>
+  </div>
 </div></section>
 
 <section class="s light" id="runs"><div class="wrap">
   <p class="eyebrow">What it runs</p>
   <h2>One chat. <i>The whole back office.</i></h2>
-  <p class="lead">Every module below is live in the prototype. Read-only things just happen. Anything outward waits for your tap, and anything that moves money waits for a six-digit code.</p>
+  <p class="lead">Everything below works in the prototype today. Reading is free. Sending anything out needs a tap. Moving money needs a six-digit code.</p>
   <div class="grid3">
     <div class="g"><span class="gi"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg></span><b>Company</b><p>Identity check, formation in any state or Delaware, EIN, documents in a vault.</p></div>
     <div class="g"><span class="gi"><svg viewBox="0 0 24 24"><path d="M3 10l9-6 9 6"/><path d="M5 10v9M9 10v9M15 10v9M19 10v9M3 19h18"/></svg></span><b>Bank</b><p>Payments with a code, cards locked to a rule, statements, low-balance alerts, freezes, the month close.</p></div>
@@ -1374,7 +1395,7 @@ function newChat(){saveRecent();const keep={mode:S.mode,partners:S.partners,key:
 function resetAll(){const keep={mode:S.mode,partners:S.partners,key:S.key,name:S.name,phone:S.phone,limit:S.limit};S=Object.assign(fresh(),keep);$('msgs').innerHTML='';$('settings').classList.remove('open');boot()}
 $('settings').addEventListener('click',e=>{if(e.target===$('settings'))$('settings').classList.remove('open')});
 function heroGo(e,text){if(e)e.preventDefault();const t=(text||$('heroInp').value||'').trim();if(!t)return false;$('heroInp').value='';$('app').scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>{$('inp').value=t;$('composer').requestSubmit()},350);return false}
-function boot(){renderAll();renderRecents();const hr=new Date().getHours(),gw=hr<12?'Morning':hr<18?'Afternoon':'Evening';$('greet').innerHTML=`<p class="eyebrow">Signoff</p><h2>${gw}${S.name?', '+esc(S.name):''}.<em>What do you want to start?</em></h2><p>Describe the business in a sentence. Signoff forms it, gets the EIN, opens the bank account, connects the books, then runs it. Nothing moves without your sign-off.</p>`;$('app').classList.add('fresh');addMsg('ai',`Hi${S.name?' '+S.name:''}. I'm Signoff. Tell me what you want to do as a business, in your own words, and I'll take you through setting it up: company, identity, bank, books and email. Nothing happens without your sign-off.`);setChips(["I'm building an AI that runs hospitals and will raise a seed round","I'm starting a rocket-launch company and need investors","I'm launching a humanoid-robot startup and raising $2M",'I run a lawn-care business on weekends'])}
+function boot(){renderAll();renderRecents();const hr=new Date().getHours(),gw=hr<12?'Morning':hr<18?'Afternoon':'Evening';$('greet').innerHTML=`<p class="eyebrow">Signoff</p><h2>${gw}${S.name?', '+esc(S.name):''}.<em>What do you want to start?</em></h2><p>Say what your business is. Signoff makes the company, then runs it. Nothing goes out without your OK.</p>`;$('app').classList.add('fresh');addMsg('ai',`Hi${S.name?' '+S.name:''}. I'm Signoff. Tell me what your business is, in your own words. I'll set up the company, then run it with you. Nothing goes out without your OK.`);setChips(["I'm building an AI that runs hospitals and will raise a seed round","I'm starting a rocket-launch company and need investors","I'm launching a humanoid-robot startup and raising $2M",'I run a lawn-care business on weekends'])}
 /* waitlist: set WAITLIST_ENDPOINT to a form service URL (Formspree, Google Form, your own API) when the page is deployed; until then sign-ups are kept in this browser */
 const WAITLIST_ENDPOINT='https://signoff-three.vercel.app/api/waitlist'; /* absolute so the form works from any domain the page is served on */
 async function joinWaitlist(e){e.preventDefault();const email=$('wlEmail').value.trim(),why=$('wlWhy').value.trim(),msg=$('wlMsg');msg.className='wlmsg';
