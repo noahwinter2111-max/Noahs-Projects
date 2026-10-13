@@ -133,7 +133,7 @@ footer{padding:40px 0 48px;border-top:1px solid var(--rule)}
     <div class="g"><b>Tax reserve, automatically</b><p>A share of every deposit moves to a sub-account the day it lands. Quarterly estimated tax goes to the IRS from that account with a code.</p><small>Sub-account at the bank</small></div>
     <div class="g"><b>Getting paid</b><p>Payment links, monthly subscriptions and invoices that chase themselves. Money settles into this account and matches itself in QuickBooks. Refunds need a code.</p><small>Card processor settles here</small></div>
     <div class="g"><b>Investor money kept apart</b><p>When a SAFE is signed the bank shows the expected wire and matches it when it lands. The money sits in a raised sub-account; moving it to operating needs a code.</p><small>Second sub-account</small></div>
-    <div class="g"><b>Payroll and cards</b><p>Owner salary through payroll for a C corp, an owner draw for an LLC. Virtual cards locked to one merchant rule, frozen with a tap. Low-balance alerts hold standing payments.</p><small>Bank's card program</small></div>
+    <div class="g"><b>Payroll and cards</b><p>Owner salary through payroll for a C corp, an owner draw for an LLC. Virtual cards locked to one merchant rule, with a monthly limit the bank enforces.</p><small>Bank's card program</small></div>
   </div>
   <p class="quote">Account open, every payment, every sub-account move, every card: the bank sees all of it and executes all of it.</p>
 </div></section>
@@ -145,12 +145,12 @@ footer{padding:40px 0 48px;border-top:1px solid var(--rule)}
   <div class="tablewrap"><table>
     <tr><th style="width:26%">Signoff action</th><th style="width:40%">Bank call</th><th>Status</th></tr>
     <tr><td>Open the account</td><td>Create the business entity, then an operating account under it</td><td>Drafted; to confirm in a sandbox</td></tr>
-    <tr><td>Balance, transactions, statement</td><td>Read the account and its transfers</td><td>Read only</td></tr>
+    <tr><td>Balance, transactions</td><td>Read the account and its transfers</td><td>Read only</td></tr>
     <tr><td>Pay, pay bills, refund</td><td>Create counterparty, then an ACH credit in cents</td><td>Drafted; to confirm</td></tr>
     <tr><td>Due-date bills, autopay, reserve rule, payroll</td><td>Scheduled transfers, created after one code</td><td>Depends on the bank's scheduling support</td></tr>
     <tr><td>Tax reserve, raised account</td><td>Sub-accounts and book transfers between them</td><td>To confirm</td></tr>
-    <tr><td>Cards, freeze</td><td>Issue a card with a spending rule; suspend it</td><td>Depends on the bank's card program</td></tr>
-    <tr><td>Account open, transfer events, low balance</td><td>Webhook, HMAC-SHA256 over the raw body</td><td>Receiver drafted and signature-checked</td></tr>
+    <tr><td>Cards</td><td>Issue a card with a spending rule</td><td>Depends on the bank's card program</td></tr>
+    <tr><td>Account open, transfer events</td><td>Webhook, HMAC-SHA256 over the raw body</td><td>Receiver drafted and signature-checked</td></tr>
   </table></div>
   <p class="quote">Until a key exists the prototype simulates the bank and says so on screen. With a key, the same tap does it for real.</p>
 </div></section>
