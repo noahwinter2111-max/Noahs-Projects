@@ -113,6 +113,9 @@ tr.hl td{background:var(--tint);padding-left:16px}
 @media (prefers-reduced-motion:reduce){.r,.s,.step,.out{transition:none}}
 .dark table th{color:var(--acc-l);border-color:var(--rule-d)}.dark table td{color:var(--paper2);border-color:var(--rule-d)}.dark table td:first-child{color:var(--paper)}
 #s8 .lines>div{padding:16px 0}#s8 .band>div{padding:28px 40px 30px 0}#s8 .band>div+div{padding-left:40px}
+#s3{gap:28px}#s3 .sub{font-size:27px}#s3 .blk p{font-size:25px}
+#s5{gap:28px}#s5 .blk p{font-size:24px}#s5 .blk{padding:32px 30px 34px}
+#s12 .band p{font-size:24px}#s12 .band>div{padding-top:32px;padding-bottom:36px}
 </style>
 
 <div id="bar"></div>
@@ -143,7 +146,7 @@ tr.hl td{background:var(--tint);padding-left:16px}
 <section class="s" id="s3">
 <div class="logo"><i></i></div><p class="num">03</p>
 <div class="hd r"><b>One chat builds the company.</b><i>Then it runs it.</i></div>
-<p class="sub r">You describe the business in your own words. Signoff takes you through identity, formation, EIN, bank, books and email, in that order, then stays on as the back office: payments, invoices, contracts, cards, taxes, and when the time comes, the SAFEs and the cap table. It does the work. You hold the pen.</p>
+<p class="sub r">You describe the business in your own words. Signoff takes you through identity, formation, EIN, bank, books and email, in that order, then stays on as the back office: bills, invoices and payment links, cards, a tax reserve that fills itself, quarterly tax and filings, payroll, and when the time comes, the SAFEs, the cap table and investor money kept apart at the bank. It does the work. You hold the pen.</p>
 <div class="row">
 <div class="blk r"><p class="eyebrow">01 · The agent</p><h3>Proposes</h3><p>It drafts the filing, the payment, the invoice, the reply. It never holds money and never signs for the owner.</p></div>
 <div class="blk r"><p class="eyebrow">02 · The gate</p><h3>Decides</h3><p>Plain code checks every action: what tier it is, what it needs, whether the stage is unlocked. The model cannot talk past it.</p></div>
@@ -171,8 +174,8 @@ tr.hl td{background:var(--tint);padding-left:16px}
 <div class="hd r"><b>Two customers.</b><i>One back office.</i></div>
 <p class="sub r">The first answer decides the path. Everything after that is the same chat.</p>
 <div class="row">
-<div class="blk r ac"><p class="eyebrow">Founders who will raise</p><h3>"I'll raise money"</h3><p>Delaware C corporation from day one, 10,000,000 founder shares, standard post-money SAFEs, a cap table that updates when the wire lands, data rooms that expire, monthly investor updates, runway. The owner pays a subscription and a flat fee per raise event.</p></div>
-<div class="blk r ac"><p class="eyebrow">One-person businesses</p><h3>"I mow lawns on weekends"</h3><p>Home-state LLC, EIN, bank account, QuickBooks with the bank feed on, invoices that chase themselves, a quarter of profit moved to a tax reserve, cards locked to one kind of spending, a CPA before the first filing. The owner pays a subscription and fees on money movement.</p></div>
+<div class="blk r ac"><p class="eyebrow">Founders who will raise</p><h3>"I'll raise money"</h3><p>Delaware C corporation from day one, 10,000,000 founder shares, standard post-money SAFEs, investor money in its own account at the bank, a cap table that updates when the wire lands, founder salary through payroll, data rooms, monthly updates, runway. The owner pays a subscription and a flat fee per raise event.</p></div>
+<div class="blk r ac"><p class="eyebrow">One-person businesses</p><h3>"I mow lawns on weekends"</h3><p>Home-state LLC, EIN, bank account, QuickBooks with the bank feed on, bills paid on their due dates, invoices and payment links, a share of every deposit reserved for tax, quarterly payments and the annual report filed, cards locked to one kind of spending, a CPA before the first return. The owner pays a subscription and fees on money movement.</p></div>
 </div>
 <div class="sp"></div>
 <p class="quote r">Formation is the acquisition wedge. The bank account is the retention wedge. A small business that later raises is converted, with the owner's approval, and keeps everything.</p>
@@ -280,7 +283,7 @@ tr.hl td{background:var(--tint);padding-left:16px}
 <div class="logo"><i></i></div><p class="num">12</p>
 <div class="hd r"><b>Where we are,</b><i>and the next eighteen months.</i></div>
 <div class="band r">
-<div><p class="eyebrow">Today</p><h3>Prototype live, first money in</h3><p>Whole journey working, approval gate real, partners simulated. Funded so far by our first investor, Evan Winter. Waitlist open. Written launch under way: founder network, communities, CPA referrals, Product Hunt. Bank conversations beginning.</p></div>
+<div><p class="eyebrow">Today</p><h3>Prototype live, first money in</h3><p>Whole journey working: formation, bills, taxes, getting paid, investor money. Gate real, partners simulated. Funded so far by our first investor, Evan Winter. Waitlist open, written launch under way. Bank conversations beginning.</p></div>
 <div><p class="eyebrow">Months 1 to 6</p><h3>One state, one bank, one ledger</h3><p>Bank sandbox, filer and identity contracts, QuickBooks and Gmail live, first 100 companies formed and banked. Gate: zero unauthorised money movement.</p></div>
 <div><p class="eyebrow">Months 7 to 18</p><h3>Run the company</h3><p>Cards, travel, CPA panel, fundraising station, SOC 2, second bank. Gate: subscription covers model cost per active user.</p></div>
 </div>
@@ -323,3 +326,24 @@ document.querySelectorAll('.btns button').forEach(b=>b.onclick=e=>{e.stopPropaga
 let start=0;try{start=+localStorage.getItem('signoff-investor-slide')||0;if(start>=slides.length)start=0}catch(e){}
 slides[0].classList.add('on');reveal(slides[0]);[...nav.children][0].classList.add('on');document.getElementById('bar').style.width=(100/slides.length)+'%';if(start)go(start);
 </script>
+
+<script>
+/* fit: if a slide's content would run into the footer, scale the content block down to fit */
+(function(){
+  function wrapAndFit(){
+    document.querySelectorAll('section.s').forEach(function(s){
+      var foot=s.querySelector('.foot-l');if(!foot)return;
+      var body=s.querySelector(':scope > .body');
+      if(!body){body=document.createElement('div');body.className='body';var kids=[].slice.call(s.children).filter(function(e){return !/(^|\s)(logo|num|foot-l|foot-r)(\s|$)/.test(e.className)});kids.forEach(function(e){body.appendChild(e)});s.insertBefore(body,foot)}
+      body.style.transform='';body.style.width='';body.style.height='';
+      var avail=foot.offsetTop-body.offsetTop-10,need=body.scrollHeight;
+      if(need>avail&&need>0){var k=avail/need;body.style.transformOrigin='top left';body.style.transform='scale('+k+')';body.style.width=(100/k)+'%';body.style.height=(avail/k)+'px'}
+    });
+  }
+  var st=document.createElement('style');st.textContent='section.s>.body{flex:1;min-height:0;display:flex;flex-direction:column;gap:36px}';document.head.appendChild(st);
+  function run(){wrapAndFit()}
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(run);else run();
+  window.addEventListener('load',run);
+})();
+</script>
+</body></html>

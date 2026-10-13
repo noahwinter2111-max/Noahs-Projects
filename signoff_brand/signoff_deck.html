@@ -111,6 +111,8 @@ tr.hl td{background:var(--tint);padding-left:16px}
 #arrows button:focus-visible{outline:2px solid var(--acc-l)}
 .hint{font-size:24px;color:#8E98AD;margin:0}
 @media (prefers-reduced-motion:reduce){.r,.s,.step,.out{transition:none}}
+#s11{gap:26px}#s11 table{font-size:24px;line-height:1.28}#s11 th,#s11 td{padding:13px 18px 13px 0}
+#s12{gap:28px}#s12 .blk p{font-size:24px}#s12 .blk{padding:32px 30px 34px}
 </style>
 
 <div id="bar"></div>
@@ -270,15 +272,14 @@ tr.hl td{background:var(--tint);padding-left:16px}
 <div class="logo"><i></i></div><p class="num">11</p>
 <div class="hd r"><b>Running the company.</b><i>What you can say once it's set up.</i></div>
 <table class="r">
-<tr><th style="width:30%">You say</th><th style="width:14%">Tier</th><th>What happens</th></tr>
-<tr><td>Pay Priya $1,200</td><td>3</td><td>ACH next business day, code required, booked to Contractors in QuickBooks.</td></tr>
-<tr><td>Pay Priya $1,200 every month</td><td>3</td><td>Standing payment, one code once, stops when you say or if the balance is short.</td></tr>
-<tr><td>Invoice Acme $4,000</td><td>2</td><td>Sent from QuickBooks with a payment link. When they pay, the money lands and the books match themselves.</td></tr>
-<tr><td>Send Acme a contract</td><td>2</td><td>One-page services agreement for e-signature. Signed copy lands in the vault.</td></tr>
-<tr><td>Issue a card for software, $200 a month</td><td>2</td><td>Virtual card locked to one merchant rule. Lunch is declined by the bank, not the app.</td></tr>
-<tr><td>Set aside money for taxes</td><td>3</td><td>A quarter of net income moved to a tax sub-account before it can be spent.</td></tr>
-<tr><td>How is the business doing?</td><td>0</td><td>Income, expenses, net, outstanding invoices, cash, reserve.</td></tr>
-<tr><td>Reply to Acme · Book me to Austin · What did I spend?</td><td>2 · 3 · 0</td><td>Email from your own address. Travel on the company card, receipt filed. Spending summarised.</td></tr>
+<tr><th style="width:40%">You say</th><th style="width:11%">Tier</th><th>What happens</th></tr>
+<tr><td>Pay Priya $1,200</td><td>3</td><td>ACH next business day, code required, booked in QuickBooks.</td></tr>
+<tr><td>Pay the bills on their due dates · Autopay Hostway up to $100</td><td>3</td><td>One code schedules the batch from the inbox; over the limit is held.</td></tr>
+<tr><td>Send Acme a payment link · Charge Acme $39 a month · Refund Acme $500</td><td>2 · 2 · 3</td><td>Money settles into the account and matches itself in QuickBooks.</td></tr>
+<tr><td>Set aside 25% of every deposit automatically · Pay the estimated tax</td><td>3 · 3</td><td>The reserve fills on every deposit; the IRS is paid from it.</td></tr>
+<tr><td>File the annual report · Send the 1099s · File my return</td><td>3 · 2 · 2</td><td>State filing paid, 1099s sent, a CPA signs and e-files.</td></tr>
+<tr><td>Issue a card for software, $200 a month · Pay myself $5,000 a month</td><td>2 · 3</td><td>Card locked to one rule; salary through payroll, or an owner draw.</td></tr>
+<tr><td>How is the business doing? · Show my statement · Close the month</td><td>0 · 0 · 1</td><td>Profit and loss, the statement, every transaction categorised.</td></tr>
 </table>
 <p class="foot-l">signoff-three.vercel.app</p><p class="foot-r">11 / 20</p>
 </section>
@@ -289,11 +290,11 @@ tr.hl td{background:var(--tint);padding-left:16px}
 <p class="sub r">"I want to raise $50,000 from Jane Park at a $1M cap." If the company is an LLC, Signoff offers to convert it first. Then:</p>
 <div class="row">
 <div class="blk r"><p class="eyebrow">SAFE</p><h3>Standard form, sent for signature</h3><p>Post-money, YC form, no side letters. The gate refuses a cap under four times the amount, or anything over $5M. Those go to a lawyer.</p></div>
-<div class="blk r"><p class="eyebrow">Cap table</p><h3>Updates when the wire lands</h3><p>Ownership shown as if every SAFE converted at its cap, the worst case for the founder, until a priced round sets the real number.</p></div>
+<div class="blk r"><p class="eyebrow">Cap table and cash</p><h3>Updates when the wire lands</h3><p>The bank shows the expected wire and matches it. The money sits in a raised sub-account, apart from operating cash; moving it needs a code. Ownership shown as if every SAFE converted at its cap.</p></div>
 <div class="blk r"><p class="eyebrow">Investor relations</p><h3>Data room and updates</h3><p>Read-only data-room links that expire in 30 days, with every open reported. Monthly updates with cash, net income and one ask, sent only to funded investors, after the owner's sign-off.</p></div>
 </div>
 <div class="sp"></div>
-<p class="quote r">Runway is cash divided by standing payments and card limits. The number appears the moment either exists.</p>
+<p class="quote r">Runway is operating cash plus the raised account, divided by standing payments, card limits and your own pay.</p>
 <p class="foot-l">signoff-three.vercel.app</p><p class="foot-r">12 / 20</p>
 </section>
 
@@ -446,3 +447,24 @@ document.querySelectorAll('.btns button').forEach(b=>b.onclick=e=>{e.stopPropaga
 let start=0;try{start=+localStorage.getItem('signoff-deck-slide')||0;if(start>=slides.length)start=0}catch(e){}
 slides[0].classList.add('on');reveal(slides[0]);[...nav.children][0].classList.add('on');document.getElementById('bar').style.width=(100/slides.length)+'%';if(start)go(start);
 </script>
+
+<script>
+/* fit: if a slide's content would run into the footer, scale the content block down to fit */
+(function(){
+  function wrapAndFit(){
+    document.querySelectorAll('section.s').forEach(function(s){
+      var foot=s.querySelector('.foot-l');if(!foot)return;
+      var body=s.querySelector(':scope > .body');
+      if(!body){body=document.createElement('div');body.className='body';var kids=[].slice.call(s.children).filter(function(e){return !/(^|\s)(logo|num|foot-l|foot-r)(\s|$)/.test(e.className)});kids.forEach(function(e){body.appendChild(e)});s.insertBefore(body,foot)}
+      body.style.transform='';body.style.width='';body.style.height='';
+      var avail=foot.offsetTop-body.offsetTop-10,need=body.scrollHeight;
+      if(need>avail&&need>0){var k=avail/need;body.style.transformOrigin='top left';body.style.transform='scale('+k+')';body.style.width=(100/k)+'%';body.style.height=(avail/k)+'px'}
+    });
+  }
+  var st=document.createElement('style');st.textContent='section.s>.body{flex:1;min-height:0;display:flex;flex-direction:column;gap:36px}';document.head.appendChild(st);
+  function run(){wrapAndFit()}
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(run);else run();
+  window.addEventListener('load',run);
+})();
+</script>
+</body></html>
